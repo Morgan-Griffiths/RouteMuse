@@ -24,19 +24,20 @@ A routes success is based on the enjoyment of those who climb it. One aspect of 
 
 Our task is to use historical and present route data, taken in consideration with the gym's setting goals, to output the types of routes that will close the gap between the reality of the gym and the goal of the gym. Supplementary goals are creating inspiration and challenge for the setters, and guiding the setters to understand the wishes of the people who climb their problems. By Suggesting routes that are likely to be highly rated.
 
-**There are two main approaches to solving this:**
-1.Math
-2.Neural Nets with RL
+## The Algorithm
+
+#### **There are two main approaches to solving this:**
+
+1. Math
+2. Neural Nets with RL
 
 We will seek to compare the two and select whichever one performs the best, or is best suited to our applications.
 
-## The Algorithm
+#### _Loss functions_
 
-_Loss functions_
-
-L1 distance = Goals - Current Routes.
-Loss = Huber(distance)
-_Huber loss is MSE when the loss > 1, absolute difference otherwise_
+- L1 distance = Goals - Current Routes.
+- Loss = Huber(distance)
+  _Huber loss is MSE when the loss > 1, absolute difference otherwise_
 
 #### Math
 
@@ -47,35 +48,38 @@ _Huber loss is MSE when the loss > 1, absolute difference otherwise_
 
 _Proximal Policy Optimization_
 
-**Input**
-distance
+#### **Input**
 
-**Possible Inputs**
-All historical routes - for calculation of distance between suggested routes and historical routes
-Current routes - for calculation of distance between suggested routes and current routes
+- distance
 
-**Outputs**
+#### **Possible Inputs**
+
+- All historical routes - for calculation of distance between suggested routes and historical routes
+- Current routes - for calculation of distance between suggested routes and current routes
+
+#### **Outputs**
+
 Route suggestions (Array of routes with 1s in the appropriate categories)
 
 This will then be converted into JSON format to be fed back into the database as a planning document.
 
-_Additional terms_
-Novelty term: Increase the value of novel routes. This could be a distance from other routes.
-When distance is high, the factor should be possitive. When distance is low, the factor should be subtractive.
+#### _Additional terms_
 
-Entropy penalty: Penalize stationary route generation. (similarity between previous and current routes)
-More for keeping the weights moving. High when the distance between weights is small.
+- Novelty term: Increase the value of novel routes. This could be a distance from other routes. When distance is high, the factor should be possitive. When distance is low, the factor should be subtractive.
 
-**Restrictions**
-Wall type is a hard restriction on styles.
-Number of styles can vary by route.
-Number of techniques can vary by route.
+- Entropy penalty: Penalize stationary route generation (similarity between previous and current routes). More for keeping the weights moving. High when the distance between weights is small.
+
+#### **Restrictions**
+
+- Wall type is a hard restriction on styles.
+- Number of styles can vary by route.
+- Number of techniques can vary by route.
 
 ## Setting the suggested routes
 
 After the routes are created then we move on to the distribution of those routes across the setting team. The goal is to inspire and motivate the setters to close the gap to the goals, while improving their own setting skill.
 
-**Setter Attributes**
+#### **Setter Attributes**
 
 Historical route distribution.
 Time taken to create routes.
