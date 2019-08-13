@@ -4,15 +4,14 @@ Suggestion engine for rock climbing routes
 
 ## Overview
 
-The Goal
-**One**
+**_The Goal_**
 
-#### Training Data
+### Training Data
 
 Create the ability to artificially generate routes for training a network and to demonstrate the capability and performance of the various methods of suggesting routes.
 **Two**
 
-#### Algorithm
+### Algorithm
 
 Create the Network and algorithms that perform well on the training data.
 
@@ -39,12 +38,12 @@ We will seek to compare the two and select whichever one performs the best, or i
 - Loss = Huber(distance)
   _Huber loss is MSE when the loss > 1, absolute difference otherwise_
 
-#### Math
+## Math
 
 1. Take the max, deterministically populate the desired routes
 2. Probabilistically output routes in a distribution
 
-#### RL
+## RL
 
 _Proximal Policy Optimization_
 
