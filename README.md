@@ -4,14 +4,18 @@ Suggestion engine for rock climbing routes
 
 ## Overview
 
-**_The Goal_**
+---
+
+**The Goal**
+
+---
 
 ### Training Data
 
 Create the ability to artificially generate routes for training a network and to demonstrate the capability and performance of the various methods of suggesting routes.
 **Two**
 
-### Algorithm
+### Algorithms
 
 Create the Network and algorithms that perform well on the training data.
 
