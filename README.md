@@ -78,6 +78,15 @@ This will then be converted into JSON format to be fed back into the database as
 - Number of styles can vary by route.
 - Number of techniques can vary by route.
 
+Current implementation is 1 style and 1 technique per route.
+
+## Querying the database
+
+1. Current Routes
+2. Current Goals
+3. Locations to strip
+4. Historical routes (for novelty comparisons)
+
 ## Setting the suggested routes
 
 After the routes are created then we move on to the distribution of those routes across the setting team. The goal is to inspire and motivate the setters to close the gap to the goals, while improving their own setting skill.
