@@ -161,3 +161,20 @@ class Utilities(object):
         mask = np.array(Utilities.flatten_list(mask))
         route[mask] = 1
         return route
+
+    ### For the network ###
+
+    def route_from_suggestion(self,suggestion):
+        """
+        For converting network outputs to actual routes
+        """
+        route = np.zeros(self.total_fields)
+        
+        mask = []
+        for index in self.field_indexes:
+            field_location = suggestion[index[index[0]:index[1]]]
+            field_choice = np.random.choice(np.arange(index[0],index[1]),p=field_location)
+            mask.append(field_choice + index[0])
+        mask = np.array(Utilities.flatten_list(mask))
+        route[mask] = 1
+        return route
