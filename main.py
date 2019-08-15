@@ -15,6 +15,9 @@ from test_data import build_data
 
 """
 Generate training data and train on it
+
+TODO
+Generate a unique hash for each route
 """
 
 def main():
@@ -26,36 +29,26 @@ def main():
 	# train on data
 	train_network(agent,utils,config)
 
-def generate_data(utils,episodes,N):
-	"""
-	Generator that returns new random gym
-	"""
-	for _ in range(episodes):
-		new_goals = utils.gen_random_goals(N)
-		new_routes = utils.gen_random_routes(N)
-		new_gym = Gym(new_routes,new_goals)
-		yield new_gym
-
 def train_network(agent,utils,config):
 	experience = namedtuple('experience',field_names=['state','value','log_prob','action','reward','next_state'])
-	for gym in generate_data(utils,config.episodes,config.total_routes):
+	gym = Gym(config.total_routes,config.num_reset_routes,utils)
+	total_rewards = []
+	for e in range(config.episodes):
 		trajectory = []
-		inital_loss = gym.loss
-		state = gym.return_masked_distance(config.num_reset_routes)
+		rewards = []
+		state = gym.reset()
 		for t in range(config.tmax):
 			suggestion,log_prob,value = agent.act(state)
 			route = utils.route_from_suggestion(suggestion)
-			gym.add_route(route)
-			loss = gym.loss
-			reward = loss - inital_loss
-			next_state = gym.return_masked_distance(config.num_reset_routes)
+			next_state,reward = gym.step(config.num_reset_routes)
 			# Record (s,a,r,s)
-			exp = experience(state,value,log_prob,route,reward,next_state)
+			exp = experience(state,value,log_prob,suggestion,reward,next_state)
 			trajectory.append(exp)
-
+			rewards.append(reward)
 			state = next_state
-			inital_loss = loss
 		agent.step(trajectory)
+		total_rewards.append(sum(rewards))
+		print('mean score',np.mean(total_rewards))
 
 if __name__ == '__main__':
     main()

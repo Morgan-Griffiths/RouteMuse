@@ -2,10 +2,15 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F 
 import torch.distributions.distribution as dist
+import torch.distributions.categorical as Categorical
 
 """
 PyTorch implementation of Actor Critic class for PPO. 
 Combined torso with dual output 
+
+2 Options:
+use categorical for each slice
+use softmax and torch.log for whole
 """
 
 class PPO_net(nn.Module):
@@ -32,7 +37,7 @@ class PPO_net(nn.Module):
 
         self.value_output = nn.Linear(hidden_dims[-1],1)
 
-    def forward(self,state,action=None):
+    def forward(self,state):
         """
         Expects state to be a torch tensor
 
@@ -43,13 +48,14 @@ class PPO_net(nn.Module):
         for hidden_layer in self.hidden_layers:
             x = F.relu(hidden_layer(x))
 
-        if action == None:
-            actions = []
-            for action_layer in self.action_outputs:
-                selection = F.softmax(action_layer(x))
-                actions.append(selection)
-
+        actions = []
+        for action_layer in self.action_outputs:
+            selection = F.softmax(action_layer(x),dim=0)
+            actions.append(selection)
+        if len(actions[0].size()) > 1:
             action = torch.cat(actions,dim=1)
+        else:
+            action = torch.cat(actions,dim=0)
 
         # a = self.action_output(x)
         # a = dist(a)
@@ -58,5 +64,5 @@ class PPO_net(nn.Module):
         # entropy = a.entropy()
 
         v = self.value_output(x)
-        return route,torch.log(action),v
+        return action,torch.log(action),v
         

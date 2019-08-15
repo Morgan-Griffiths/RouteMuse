@@ -174,9 +174,9 @@ class Utilities(object):
         
         mask = []
         for index in self.field_indexes:
-            field_location = suggestion[index[index[0]:index[1]]]
+            field_location = suggestion[index[0]:index[1]]
             field_choice = np.random.choice(np.arange(index[0],index[1]),p=field_location)
-            mask.append(field_choice + index[0])
-        mask = np.array(Utilities.flatten_list(mask))
+            mask.append(field_choice)
+        # mask = np.array(Utilities.flatten_list(mask))
         route[mask] = 1
         return route

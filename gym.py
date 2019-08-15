@@ -18,14 +18,21 @@ Contains the ability to calculate:
 When the network or math is looking at what route to make, 
 we should subtract the routes that will be stripped first,
 before calculating the distance.
+
+could add num_routes to the gym class
 """
 
 class Gym(object):
-    def __init__(self,routes,goals):
-        self.routes = routes
-        self.route_shape = routes.shape[1]
-        self.goals = goals
-        self.index = 0
+    def __init__(self,num_routes,num_reset,utils):
+        self.num_routes = num_routes
+        self.num_reset = num_reset
+        self.utils = utils
+        self.routes = None
+        self.goals = None
+        self.route_shape = None
+        self.initial_loss = None
+        self.reset_index = 0
+        self.set_index = 0
         self.keys = {
                     0:'style',
                     1:'techniques',
@@ -40,20 +47,48 @@ class Gym(object):
                     10:'hold_sets',
                     11:'grade'
                 }
-    
-    def update_route(self,route):
-        self.routes[self.index][:] = route
+    def reset(self):
+        """
+        Resets env.
+        regenerates new routes and new goals
+        resets the indexes
+        """
+        self.goals = self.utils.gen_random_goals(self.num_routes)
+        self.routes = self.utils.gen_random_routes(self.num_routes)
+        self.route_shape = self.routes.shape[1]
+        self.reset_index = 0
+        self.set_index = 0
+        self.initial_loss = self.loss
+        self.bulk_strip(self.num_reset)
+        return self.distance
+
+    def step(self,routes):
+        if isinstance(routes,(np.ndarray,np.generic)):
+            self.bulk_update(routes)
+            self.bulk_strip(self.num_routes)
+        else:
+            self.set_route(routes)
+            self.strip_route()
+
+        reward = self.initial_loss - self.loss
+        self.initial_loss = self.loss
+        return self.distance,reward
+
+    def set_route(self,route):
+        self.routes[self.set_index][:] = route
+        self.update_set_index()
+
+    def strip_route(self):
+        empty_route = np.zeros(self.route_shape)
+        self.routes[self.reset_index][:] = empty_route
+        self.update_reset_index() 
 
     def bulk_update(self,routes):
         for i in routes.shape[0]:
-            self.routes[self.index][:] = routes[i][:]
-            self.update_index()
-
-    def delete_route(self,index):
-        empty_route = np.zeros(self.route_shape)
-        self.routes[index][:] = empty_route
+            self.routes[self.set_index][:] = routes[i][:]
+            self.update_set_index() 
     
-    def return_masked_distance(self,num_routes):
+    def bulk_strip(self,num_routes):
         """
         num_routes : int - number of routes to be reset
         route_indicies : np.array - indicies of the routes to be replaced.
@@ -61,36 +96,41 @@ class Gym(object):
         delete routes that are to be stripped and calc distance. More informative than the pure distance
         """
         empty_route = np.zeros(self.route_shape)
-        mask = np.ones(self.routes.shape[0],dtype=np.int)
-        mask[self.index:self.index+num_routes] = 0
-        return self.distance(routes = self.routes[mask])
+        for _ in range(num_routes):
+            self.routes[self.reset_index] = empty_route
+            self.update_reset_index()
 
-    def update_index(self):
-        self.index = (self.index + 1) % len(self)
+    def update_set_index(self):
+        self.reset_index = (self.reset_index + 1) % len(self)
+
+    def update_reset_index(self):
+        self.set_index = (self.set_index + 1) % len(self)
         
-    def distance(self,routes=None):
+    @property
+    def distance(self):
         # mean columns in routes
-        if isinstance(routes,(np.ndarray,np.generic)):
-            current_dist = np.sum(routes,axis = 0)
-            nd_distance = self.goals - current_dist
-            return nd_distance
-        else:
-            current_dist = np.sum(self.routes,axis = 0)
-            nd_distance = self.goals - current_dist
-            return nd_distance
+        # if isinstance(routes,(np.ndarray,np.generic)):
+        #     current_dist = np.sum(routes,axis = 0)
+        #     nd_distance = self.goals - current_dist
+        #     return nd_distance
+        # else:
+        current_dist = np.sum(self.routes,axis = 0)
+        nd_distance = self.goals - current_dist
+        return nd_distance
     
     @property
     def get_index(self):
         """
-        Current setting index, for stripping routes
+        Current resetting index, for stripping routes
+        and set index for setting routes
         """
-        return self.index
+        return self.reset_index,self.set_index
         
     @property
     def loss(self):
         current_dist = np.sum(self.routes,axis = 0)
         nd_distance = self.goals - current_dist
-        return np.mean((nd_distance)**2)
+        return np.mean(nd_distance)**2
     
     def __len__(self):
         # Return number of routes
