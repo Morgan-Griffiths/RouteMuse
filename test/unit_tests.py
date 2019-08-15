@@ -3,7 +3,8 @@ import sys
 import numpy as np
 
 from test_data import build_data
-sys.path.append('/Users/morgan/Code/RouteMuse/')
+# sys.path.append('/Users/morgan/Code/RouteMuse/')
+sys.path.append('/home/kenpachi/Code/RouteMuse/')
 from utils import Utilities
 from config import Config
 
@@ -25,12 +26,12 @@ class TestConversion(unittest.TestCase):
 
 class TestRandomRoutes(unittest.TestCase):
     def test(self):
-        ran_routes = utils.gen_random_route(5)
+        ran_routes = utils.gen_random_routes(5)
         self.assertEqual(ran_routes.shape[0], 5)
 
 class TestReadable(unittest.TestCase):
     def test(self):
-        ran_routes = utils.gen_random_route(5)
+        ran_routes = utils.gen_random_routes(5)
         readable_routes = [utils.convert_route_to_readable(route) for route in ran_routes]
         print('readable_routes',readable_routes)
 

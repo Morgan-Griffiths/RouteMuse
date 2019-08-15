@@ -10,13 +10,14 @@ Combined torso with dual output
 
 class PPO_net(nn.Module):
     def __init__(self,nA,seed,indicies,hidden_dims=(256,128)):
+        super(PPO_net,self).__init__()
         self.nS = nA
         self.nA = nA
         self.seed = torch.manual_seed(seed)
         self.indicies = indicies
         
         # Layers
-        self.input_layer = nn.Linear(nS,hidden_dims[0])
+        self.input_layer = nn.Linear(self.nS,hidden_dims[0])
         self.hidden_layers = nn.ModuleList()
         for i in range(1,len(hidden_dims)):
             hidden_layer = nn.Linear(hidden_dims[i-1],hidden_dims[i])
@@ -31,7 +32,7 @@ class PPO_net(nn.Module):
 
         self.value_output = nn.Linear(hidden_dims[-1],1)
 
-    def forward(self,state):
+    def forward(self,state,action=None):
         """
         Expects state to be a torch tensor
 
@@ -42,12 +43,13 @@ class PPO_net(nn.Module):
         for hidden_layer in self.hidden_layers:
             x = F.relu(hidden_layer(x))
 
-        actions = []
-        for action_layer in self.action_outputs:
-            selection = F.softmax(action_layer(x))
-            actions.append(selection)
+        if action == None:
+            actions = []
+            for action_layer in self.action_outputs:
+                selection = F.softmax(action_layer(x))
+                actions.append(selection)
 
-        route = torch.cat(actions,dim=1)
+            action = torch.cat(actions,dim=1)
 
         # a = self.action_output(x)
         # a = dist(a)
@@ -56,5 +58,5 @@ class PPO_net(nn.Module):
         # entropy = a.entropy()
 
         v = self.value_output(x)
-        return route,torch.log(route),v
+        return route,torch.log(action),v
         

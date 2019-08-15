@@ -2,6 +2,10 @@
 
 Suggestion engine for rock climbing routes
 
+## Requirements
+
+PyTorch
+
 ## Overview
 
 ---

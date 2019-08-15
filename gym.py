@@ -44,11 +44,16 @@ class Gym(object):
     def update_route(self,route):
         self.routes[self.index][:] = route
 
+    def bulk_update(self,routes):
+        for i in routes.shape[0]:
+            self.routes[self.index][:] = routes[i][:]
+            self.update_index()
+
     def delete_route(self,index):
         empty_route = np.zeros(self.route_shape)
         self.routes[index][:] = empty_route
     
-    def setting_session(self,num_routes):
+    def return_masked_distance(self,num_routes):
         """
         num_routes : int - number of routes to be reset
         route_indicies : np.array - indicies of the routes to be replaced.
@@ -56,13 +61,23 @@ class Gym(object):
         delete routes that are to be stripped and calc distance. More informative than the pure distance
         """
         empty_route = np.zeros(self.route_shape)
-        for _ in range(num_routes):
-            self.routes[self.index] = empty_route
-            self.update_index()
-        return self.distance()
+        mask = np.ones(self.routes.shape[0],dtype=np.int)
+        mask[self.index:self.index+num_routes] = 0
+        return self.distance(routes = self.routes[mask])
 
     def update_index(self):
         self.index = (self.index + 1) % len(self)
+        
+    def distance(self,routes=None):
+        # mean columns in routes
+        if isinstance(routes,(np.ndarray,np.generic)):
+            current_dist = np.sum(routes,axis = 0)
+            nd_distance = self.goals - current_dist
+            return nd_distance
+        else:
+            current_dist = np.sum(self.routes,axis = 0)
+            nd_distance = self.goals - current_dist
+            return nd_distance
     
     @property
     def get_index(self):
@@ -71,13 +86,6 @@ class Gym(object):
         """
         return self.index
         
-    @property
-    def distance(self):
-        # mean columns in routes
-        current_dist = np.sum(self.routes,axis = 0)
-        nd_distance = self.goals - current_dist
-        return nd_distance
-    
     @property
     def loss(self):
         current_dist = np.sum(self.routes,axis = 0)

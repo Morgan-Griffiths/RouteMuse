@@ -69,7 +69,7 @@ class Utilities(object):
         fields_list = [list(field.values()) for field in fields]
         return fields_list
 
-    def gen_random_route(self,num_routes):
+    def gen_random_routes(self,num_routes):
         """
         Gen ints between the field indicies.
 
@@ -87,6 +87,8 @@ class Utilities(object):
         """
         mask = np.where(route > 0)[0]
         return self.route_array[mask]
+
+    ### Goals ###
 
     def make_default_goals(self,num_routes):
         """
