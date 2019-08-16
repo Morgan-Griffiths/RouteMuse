@@ -8,8 +8,8 @@ from gym import Gym
 from utils import Utilities
 from config import Config
 from ppo_agent import PPO
-# sys.path.append('/Users/morgan/Code/RouteMuse/')
-sys.path.append('/home/kenpachi/Code/RouteMuse/test')
+sys.path.append('/Users/morgan/Code/RouteMuse/test')
+# sys.path.append('/home/kenpachi/Code/RouteMuse/test')
 print('path',os.getcwd())
 from test_data import build_data
 
@@ -40,7 +40,7 @@ def train_network(agent,utils,config):
 		for t in range(config.tmax):
 			suggestion,log_prob,value = agent.act(state)
 			route = utils.route_from_suggestion(suggestion)
-			next_state,reward = gym.step(config.num_reset_routes)
+			next_state,reward = gym.step(route)
 			# Record (s,a,r,s)
 			exp = experience(state,value,log_prob,suggestion,reward,next_state)
 			trajectory.append(exp)
