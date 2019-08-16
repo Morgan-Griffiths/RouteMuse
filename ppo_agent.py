@@ -51,10 +51,13 @@ class PPO(object):
         self.step_hyperparams()
         
         states,actions,values,log_probs,rewards,next_states = self.unwrap(trajectory)
+        # Normalize the rewards
+        # rewards = (rewards - np.mean(rewards)) / np.std(rewards)
         last_value = self.policy(self.tensor(next_states[-1]))[-1].unsqueeze(1).cpu().detach().numpy()
         values = np.vstack(values + [last_value])
         advs = self.gae(values,rewards)
         returns = self.n_step_returns(rewards)
+
         
         states,actions,log_probs,returns,advs = self.bulk_tensor(states,actions,log_probs,returns,advs)
         for indicies in self.minibatch(N):
@@ -119,9 +122,9 @@ class PPO(object):
         Learn on batches from trajectory
         """
         
-        _,new_log_probs,new_values = self.policy(states)
+        new_actions,new_log_probs,new_values = self.policy(states)
         
-        # ratio = (new_log_probs - log_probs)**2
+        # ratio = (new_actions - actions)**2
         ratio = new_log_probs / log_probs
         clip = torch.clamp(ratio,1-self.epsilon,1+self.epsilon)
         clipped_surrogate = torch.min(clip*advs,ratio*advs)
