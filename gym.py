@@ -30,8 +30,8 @@ class Gym(object):
         self.routes = None
         self.goals = None
         self.route_shape = None
-        self.initial_loss = None
-        self.reset_index = 0
+        self.prev_loss = None
+        self.reset_index = 1
         self.set_index = 0
         self.keys = {
                     0:'style',
@@ -58,20 +58,20 @@ class Gym(object):
         self.route_shape = self.routes.shape[1]
         self.reset_index = 0
         self.set_index = 0
-        self.initial_loss = self.loss
+        self.prev_loss = self.loss
         self.bulk_strip(self.num_reset)
         return self.distance
 
     def step(self,routes):
-        if isinstance(routes,(np.ndarray,np.generic)):
+        if len(routes.shape) > 1:
             self.bulk_update(routes)
             self.bulk_strip(self.num_routes)
         else:
             self.set_route(routes)
             self.strip_route()
 
-        reward = self.initial_loss - self.loss
-        self.initial_loss = self.loss
+        reward = self.prev_loss - self.loss
+        self.prev_loss = self.loss
         return self.distance,reward
 
     def set_route(self,route):
@@ -86,7 +86,7 @@ class Gym(object):
     def bulk_update(self,routes):
         for i in routes.shape[0]:
             self.routes[self.set_index][:] = routes[i][:]
-            self.update_set_index() 
+            self.update_reset_index() 
     
     def bulk_strip(self,num_routes):
         """
@@ -101,10 +101,10 @@ class Gym(object):
             self.update_reset_index()
 
     def update_set_index(self):
-        self.reset_index = (self.reset_index + 1) % len(self)
+        self.set_index = (self.set_index + 1) % len(self)
 
     def update_reset_index(self):
-        self.set_index = (self.set_index + 1) % len(self)
+        self.reset_index = (self.reset_index + 1) % len(self)
         
     @property
     def distance(self):
@@ -130,7 +130,7 @@ class Gym(object):
     def loss(self):
         current_dist = np.sum(self.routes,axis = 0)
         nd_distance = self.goals - current_dist
-        return np.mean(nd_distance)**2
+        return np.mean(np.abs(nd_distance))
     
     def __len__(self):
         # Return number of routes
