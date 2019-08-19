@@ -29,29 +29,25 @@ keys = {
      1,0,0,0
      0,0,0,1
  ]]
+ They will be supplied by the DB in the form of a matrix. each row will correspond to a particular
+ grade or terrain type. Sorted in order of how they are stored. That way they can be easily accessed.
+ The way they will be used:
+ The network will output a vector of probabilities. Given the location/terrain type, we will zero
+ out some of the technique possibilities. And given the grade, we will also do the same. Then we
+ willl renormalize the category and select the techniques from then on. If we want to sample
+ without replacement, then add replace=False
 """
 class Utilities(object):
-    def __init__(self,json_obj,keys,grade_technique_keys,terrain_technique_keys):
-        self.keys = keys
+    def __init__(self,json_obj,config):
+        self.keys = config.keys
         self.route_array,self.field_indexes,self.field_lengths,self.field_dictionary = self.return_field_objects(json_obj)
-        self.grade_technique_mask,self.terrain_technique_mask = self.return_masks(grade_technique_keys,terrain_technique_keys)
+        self.grade_technique_mask = config.grade_technique_keys
+        self.terrain_technique_mask = config.terrain_technique_keys
         self.num_fields = len(self.field_indexes)
         assert self.num_fields == 12
         self.total_fields = self.field_indexes[-1][-1]
         print('total number of fields', self.total_fields)
         self.epsilon = 1e-7 
-
-    def return_masks(self,grade_technique_keys,terrain_technique_keys):
-        # TODO
-        grade_keys = np.arange(len(field_dictionary['grade'].values()))       # Number of Grades
-        grade_values = np.zeros(len(field_dictionary['techniques'].values())) # Number of Techniques
-        grade_values[grade_technique_keys] = 1
-        terrain_keys = np.arange(len(field_dictionary['terrain_type'].values()))       # Number of terrains
-        terrain_values = np.zeros(len(field_dictionary['techniques'].values())) # Number of Techniques
-        terrain_values[terrain_technique_keys] = 1
-        grade_technique_mask = 
-        terrain_technique_mask = 
-        return grade_technique_mask,terrain_technique_mask
 
     def return_field_objects(self,j_fields):
         """
@@ -177,15 +173,27 @@ class Utilities(object):
     def probabilistic_route(self,distance):
         route = np.zeros(self.total_fields)
         mask = []
-        for index in self.field_indexes:
+        for key,index in enumerate(self.field_indexes):
             field_location = distance[index[index[0]:index[1]]]
+            if self.keys[key] == 'techniques':
+                # Apply masks
+                combined_mask = loc_mask * grade_mask
+                field_location *= combined_mask
+                # renorm probabilities
+                field_location = field_location / np.sum(field_location)
             # We add the min to turn all values >= 0
             selection_prob = Utilities.softmax(distance[field_location]+np.abs(np.min(field_location)))
             # Make sure no probability is 0
             # selection_prob = (selection_prob + self.epsilon)
-            if np.nan in selection_prob:
-                print('selection_prob nan',selection_prob)
             field_choice = np.random.choice(np.arange(index[0],index[1]),p=selection_prob)
+            # Get mask for terrain type and grade
+            if self.keys[key] == 'grade':
+                # Grade
+                grade_mask = self.grade_technique_mask[field_choice]
+            elif self.keys[key] == 'terrain_type':
+                # terrain type
+                loc_mask = self.terrain_technique_mask[field_choice-index[0]]
+
             mask.append(field_choice + index[0])
         mask = np.array(Utilities.flatten_list(mask))
         route[mask] = 1
@@ -200,9 +208,27 @@ class Utilities(object):
         route = np.zeros(self.total_fields)
         
         mask = []
-        for index in self.field_indexes:
+        for key,index in enumerate(self.field_indexes):
             field_location = suggestion[index[0]:index[1]]
-            field_choice = np.random.choice(np.arange(index[0],index[1]),p=field_location)
+            # Zero out the possibilities
+            if self.keys[key] == 'techniques':
+                # Apply masks
+                combined_mask = loc_mask * grade_mask
+                field_location *= combined_mask
+                # renorm probabilities
+                field_location = field_location / np.sum(field_location)
+            # if np.isnan(field_location).any():
+            #     print('nan')
+            field_choice = np.random.choice(np.arange(index[0],index[1]),p=field_location,replace=False)
+            
+            # Get mask for terrain type and grade
+            if self.keys[key] == 'grade':
+                # Grade
+                grade_mask = self.grade_technique_mask[field_choice]
+            elif self.keys[key] == 'terrain_type':
+                # terrain type
+                loc_mask = self.terrain_technique_mask[field_choice-index[0]]
+
             mask.append(field_choice)
         # mask = np.array(Utilities.flatten_list(mask))
         route[mask] = 1
