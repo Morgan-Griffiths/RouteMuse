@@ -20,13 +20,17 @@ class PPO_net(nn.Module):
         self.nA = nA
         self.seed = torch.manual_seed(seed)
         self.indicies = indicies
+        self.input_bn = nn.BatchNorm1d(hidden_dims[0])
         
         # Layers
         self.input_layer = nn.Linear(self.nS,hidden_dims[0])
         self.hidden_layers = nn.ModuleList()
+        self.hidden_batches = nn.ModuleList()
         for i in range(1,len(hidden_dims)):
+            hidden_batch = nn.BatchNorm1d(hidden_dims[i-1])
             hidden_layer = nn.Linear(hidden_dims[i-1],hidden_dims[i])
             self.hidden_layers.append(hidden_layer)
+            self.hidden_batches.append(hidden_batch)
 
         
         # Action outputs, we softmax over the various classes for 1 per class (can change this for multi class)
@@ -44,9 +48,9 @@ class PPO_net(nn.Module):
         Outputs Action,log_prob, entropy and (state,action) value
         """
         assert isinstance(state,torch.Tensor)
-        x = F.relu(self.input_layer(state))
-        for hidden_layer in self.hidden_layers:
-            x = F.relu(hidden_layer(x))
+        x = F.relu(self.input_bn(self.input_layer(state)))
+        for i,hidden_layer in enumerate(self.hidden_layers):
+            x = F.relu(self.hidden_batches[i](hidden_layer(x)))
 
         actions = []
         for action_layer in self.action_outputs:

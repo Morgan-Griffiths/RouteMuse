@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F 
 import numpy as np 
+import os
 
 from Network import PPO_net
 
@@ -12,6 +13,7 @@ class PPO(object):
         self.nA = nA
         self.seed = config.seed
         self.indicies = indicies
+        self.lr = config.lr
 
         self.gradient_clip = config.gradient_clip
         self.gamma = config.gamma
@@ -24,7 +26,7 @@ class PPO(object):
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
         self.policy = PPO_net(nA,self.seed,indicies).to(self.device)
-        self.optimizer = optim.Adam(self.policy.parameters(),lr=1e-4)
+        self.optimizer = optim.Adam(self.policy.parameters(),lr=1e-4,weight_decay=config.L2)
 
     def load_weights(self,path):
         self.policy.load_state_dict(torch.load(path))

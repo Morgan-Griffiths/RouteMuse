@@ -102,49 +102,21 @@ def build_data():
             17:"Stemming"
     },
     'techniques':{
-            0:"footwork",
+            0:"toe hooking",
             1:"heel hooking",
-            2:"static movement",
-            3:"dynamic movement",
-            4:"toe hooking",
-            5:"direction of pull",
-            6:"sequence",
-            7:"mantle",
-            8:"smearing",
-            9:"pain",
-            10:"body position",
-            11:"campusing",
-            12:"drop knee",
-            13:"hand position",
-            14:"layback",
-            15:"roof footwork",
-            16:"paddle",
-            17:"compression",
-            18:"stem",
-            19:"lockoff",
-            20:"precision",
-            21:"knee bar",
-            22:"Getting to the top",
-            23:"Traversing",
-            24:"Balance",
-            25:"Smearing",
-            26:"Pressing"
+            2:"mantle",
+            3:'gaston',
+            4:'twist',
+            5:'cross',
+            6:'campus',
+            7:'layback',
+            8:'stemming'
     },
-    'hold_sets':{
-                0:"egrips_hueco_crimps",
-            1:"egrips_hueco_buckets",
-            2:"kilter_finger_buckets",
-            3:"rustic_flowers",
-            4:"kilter_crimps",
-            5:"teknik_plats",
-            6:"egrips_discs",
-            7:"kingdom_jousting_jugs",
-            8:"flathold_sloper_volumes",
-            9:"kingdom_dragonballs",
-            10:"kingdom_flakes",
-            11:"soill_innies",
-            12:"egrips_huecos",
-            13:"rockcandy_blockus"
+    'terrain_types':{
+                0:"roof",
+                1:"overhung",
+                2:"vertical",
+                3:"slab"
     }}
     json_data = json.dumps(fields)
     return json_data

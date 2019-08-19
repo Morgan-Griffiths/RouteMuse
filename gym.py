@@ -65,12 +65,13 @@ class Gym(object):
     def step(self,routes):
         if len(routes.shape) > 1:
             self.bulk_update(routes)
+            reward = self.prev_loss - self.loss
             self.bulk_strip(self.num_routes)
         else:
             self.set_route(routes)
+            reward = self.prev_loss - self.loss
             self.strip_route()
 
-        reward = self.prev_loss - self.loss
         self.prev_loss = self.loss
         return self.distance,reward
 

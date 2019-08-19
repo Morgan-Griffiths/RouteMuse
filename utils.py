@@ -16,18 +16,42 @@ keys = {
     7:'intensity',
     8:'complexity',
     9:'intra_difficulty',
-    10:'hold_sets',
+    10:'terrain_types',
     11:'grade'
 }
+3. grade_technique_mask is a matrix of values, 1s where the technique is possible
+ [[
+     1,0,0,0
+     0,0,0,1
+ ]]
+4. location_technique_maskis a matrix of values, 1s where the technique is possible
+ [[
+     1,0,0,0
+     0,0,0,1
+ ]]
 """
 class Utilities(object):
-    def __init__(self,json_obj,keys):
+    def __init__(self,json_obj,keys,grade_technique_keys,terrain_technique_keys):
         self.keys = keys
-        self.route_array,self.field_indexes,self.field_lengths = self.return_field_objects(json_obj)
+        self.route_array,self.field_indexes,self.field_lengths,self.field_dictionary = self.return_field_objects(json_obj)
+        self.grade_technique_mask,self.terrain_technique_mask = self.return_masks(grade_technique_keys,terrain_technique_keys)
         self.num_fields = len(self.field_indexes)
         assert self.num_fields == 12
         self.total_fields = self.field_indexes[-1][-1]
-        assert self.total_fields == 120
+        print('total number of fields', self.total_fields)
+        self.epsilon = 1e-7 
+
+    def return_masks(self,grade_technique_keys,terrain_technique_keys):
+        # TODO
+        grade_keys = np.arange(len(field_dictionary['grade'].values()))       # Number of Grades
+        grade_values = np.zeros(len(field_dictionary['techniques'].values())) # Number of Techniques
+        grade_values[grade_technique_keys] = 1
+        terrain_keys = np.arange(len(field_dictionary['terrain_type'].values()))       # Number of terrains
+        terrain_values = np.zeros(len(field_dictionary['techniques'].values())) # Number of Techniques
+        terrain_values[terrain_technique_keys] = 1
+        grade_technique_mask = 
+        terrain_technique_mask = 
+        return grade_technique_mask,terrain_technique_mask
 
     def return_field_objects(self,j_fields):
         """
@@ -39,11 +63,20 @@ class Utilities(object):
         Array of the fields (for quick indexing)
         indicies for each field type
         """
-        fields = self.convert_json(j_fields)
+        fields,field_dictionary = self.convert_json(j_fields)
         field_indexes,field_lengths = self.return_indicies(fields)
         flat_fields = Utilities.flatten_list(fields)
         ROUTE_ARRAY = np.array(flat_fields)
-        return ROUTE_ARRAY,field_indexes,field_lengths
+        return ROUTE_ARRAY,field_indexes,field_lengths,field_dictionary
+
+    def convert_json(self,json_obj):
+        """
+        Loads json_obj, converts resulting dictionary to list
+        """
+        j_dictionary = json.loads(json_obj)
+        fields = [j_dictionary[key] for key in self.keys.values()]
+        fields_list = [list(field.values()) for field in fields]
+        return fields_list,j_dictionary
 
     def return_indicies(self,fields):
         """
@@ -59,15 +92,6 @@ class Utilities(object):
             field_indexes.append((running_index,field_lengths[i]+running_index))
             running_index += field_lengths[i]
         return field_indexes,field_lengths
-
-    def convert_json(self,json_obj):
-        """
-        Loads json_obj, converts resulting dictionary to list
-        """
-        j_dictionary = json.loads(json_obj)
-        fields = [j_dictionary[key] for key in self.keys.values()]
-        fields_list = [list(field.values()) for field in fields]
-        return fields_list
 
     def gen_random_routes(self,num_routes):
         """
@@ -126,7 +150,6 @@ class Utilities(object):
         
         values = [self.random_num(num_routes,index[1]-index[0]) for index in (self.field_indexes)]
         goals = np.array(Utilities.flatten_list(values))
-        print('goals',goals.shape)
         return goals
 
     @staticmethod
@@ -145,8 +168,8 @@ class Utilities(object):
         route = np.zeros(self.total_fields)
         mask = []
         for index in self.field_indexes:
-            location = np.where(distance[index[0]:index[1]] == np.max(distance[index[0]:index[1]]))
-            mask.append(location + index[0])
+            location = np.where(distance[index[0]:index[1]] == np.max(distance[index[0]:index[1]]))[0]
+            mask.append(location+index[0])
         mask = np.array(Utilities.flatten_list(mask))
         route[mask] = 1
         return route
@@ -158,6 +181,10 @@ class Utilities(object):
             field_location = distance[index[index[0]:index[1]]]
             # We add the min to turn all values >= 0
             selection_prob = Utilities.softmax(distance[field_location]+np.abs(np.min(field_location)))
+            # Make sure no probability is 0
+            # selection_prob = (selection_prob + self.epsilon)
+            if np.nan in selection_prob:
+                print('selection_prob nan',selection_prob)
             field_choice = np.random.choice(np.arange(index[0],index[1]),p=selection_prob)
             mask.append(field_choice + index[0])
         mask = np.array(Utilities.flatten_list(mask))
