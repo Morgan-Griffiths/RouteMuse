@@ -14,6 +14,12 @@ def build_data():
         8:'black',
         9:'white'
     },
+    'terrain_type':{
+                0:"roof",
+                1:"overhung",
+                2:"vertical",
+                3:"slab"
+    },
     'locations': {0:"Red South",
                     1:"Red Roof",
                     2:"Red North",
@@ -110,13 +116,12 @@ def build_data():
             5:'cross',
             6:'campus',
             7:'layback',
-            8:'stemming'
-    },
-    'terrain_types':{
-                0:"roof",
-                1:"overhung",
-                2:"vertical",
-                3:"slab"
+            8:'stemming',
+            9:'lock off',
+            10:'Dyno',
+            11:'high step',
+            12:'flagging',
+            13:'Bumping'
     }}
     json_data = json.dumps(fields)
     return json_data
