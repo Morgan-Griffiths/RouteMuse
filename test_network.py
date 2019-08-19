@@ -11,8 +11,8 @@ from gym import Gym
 from utils import Utilities
 from config import Config
 from ppo_agent import PPO
-sys.path.append('/Users/morgan/Code/RouteMuse/test')
-# sys.path.append('/home/kenpachi/Code/RouteMuse/test')
+# sys.path.append('/Users/morgan/Code/RouteMuse/test')
+sys.path.append('/home/kenpachi/Code/RouteMuse/test')
 print('path',os.getcwd())
 from test_data import build_data
 
@@ -27,7 +27,7 @@ def main():
 	# Instantiate objects
 	config = Config()
 	fields = build_data()
-	utils = Utilities(fields,config.keys)
+	utils = Utilities(fields,config)
 	agent = PPO(utils.total_fields,utils.total_fields,utils.field_indexes,config)
 	# train on data
 	verify_network(agent,utils,config)

@@ -57,27 +57,31 @@ class PPO(object):
         # rewards = (rewards - np.mean(rewards)) / np.std(rewards)
         last_value = self.policy(self.tensor(next_states[-1]))[-1].unsqueeze(1).cpu().detach().numpy()
         values = np.vstack(values + [last_value])
-        advs = self.gae(values,rewards)
+        advs,TD_errors = self.gae(values,rewards)
         returns = self.n_step_returns(rewards)
-
         
-        states,actions,log_probs,returns,advs = self.bulk_tensor(states,actions,log_probs,returns,advs)
+        states,actions,log_probs,returns,advs,TD_errors,rewards = self.bulk_tensor(states,actions,log_probs,returns,advs,TD_errors,rewards)
         for indicies in self.minibatch(N):
             states_b = states[indicies]
             actions_b = actions[indicies]
             log_probs_b = log_probs[indicies]
             advs_b = advs[indicies]
             returns_b = returns[indicies]
-            self.learn(states_b,actions_b,log_probs_b,advs_b,returns_b)
+            TD_errors_b = TD_errors[indicies]
+            rewards_b = rewards[indicies]
+            
+            self.learn(states_b,actions_b,log_probs_b,advs_b,returns_b,TD_errors_b,rewards_b)
         
-    def bulk_tensor(self,states,actions,log_probs,returns,advs):
+    def bulk_tensor(self,states,actions,log_probs,returns,advs,TD_errors,rewards):
         states = torch.from_numpy(states).float().to(self.device)
         actions = torch.from_numpy(actions).float().to(self.device)
         log_probs = torch.from_numpy(log_probs).float().to(self.device)
         advs = torch.from_numpy(advs).float().to(self.device)
+        TD_errors = torch.from_numpy(TD_errors).float().to(self.device)
+        rewards = torch.from_numpy(rewards).float().to(self.device)
         # TO fix negative stride
         returns = torch.flip(torch.from_numpy(np.flip(returns,axis=0).copy()),dims=(0,)).float().to(self.device)
-        return states,actions,log_probs,returns,advs
+        return states,actions,log_probs,returns,advs,TD_errors,rewards
 
     def unwrap(self,trajectory):
         # states = torch.from_numpy(np.vstack([e.state for e in trajectory])).float().to(self.device)
@@ -110,7 +114,7 @@ class PPO(object):
         for index in reversed(range(len(TD_errors))):
             discounts = combined**np.arange(0,N-index)
             advs[index] = np.sum(TD_errors[index:] * discounts)
-        return advs
+        return advs,TD_errors
 
     def n_step_returns(self,rewards):
         N = rewards.shape[0]
@@ -119,7 +123,7 @@ class PPO(object):
         returns = discounted_returns.cumsum()[::-1].reshape(N,1)
         return returns
 
-    def learn(self,states,actions,log_probs,advs,returns):
+    def learn(self,states,actions,log_probs,advs,returns,TD_errors,rewards):
         """
         Learn on batches from trajectory
         """
@@ -127,13 +131,14 @@ class PPO(object):
         new_actions,new_log_probs,new_values = self.policy(states)
         
         # ratio = (new_actions - actions)**2
+        # ratio = new_actions / actions
         ratio = new_log_probs / log_probs
         clip = torch.clamp(ratio,1-self.epsilon,1+self.epsilon)
-        clipped_surrogate = torch.min(clip*advs,ratio*advs)
+        clipped_surrogate = torch.min(clip*TD_errors,ratio*TD_errors)
 
         self.optimizer.zero_grad()
         actor_loss = clipped_surrogate.mean()
-        critic_loss = F.smooth_l1_loss(returns,new_values)
+        critic_loss = F.smooth_l1_loss(rewards,new_values)
         loss = (actor_loss + critic_loss)
         loss.backward()
         nn.utils.clip_grad_norm_(self.policy.parameters(),self.gradient_clip)
