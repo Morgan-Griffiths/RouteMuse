@@ -11,8 +11,8 @@ from gym import Gym
 from utils import Utilities
 from config import Config
 from ppo_agent import PPO
-sys.path.append('/Users/morgan/Code/RouteMuse/test')
-# sys.path.append('/home/kenpachi/Code/RouteMuse/test')
+# sys.path.append('/Users/morgan/Code/RouteMuse/test')
+sys.path.append('/home/kenpachi/Code/RouteMuse/test')
 print('path',os.getcwd())
 from test_data import build_data
 
@@ -27,7 +27,7 @@ def main():
 	# Instantiate objects
 	config = Config()
 	fields = build_data()
-	utils = Utilities(fields,config.keys)
+	utils = Utilities(fields,config)
 	agent = PPO(utils.total_fields,utils.total_fields,utils.field_indexes,config)
 	# train on data
 	train_network(agent,utils,config)
@@ -59,8 +59,12 @@ def train_network(agent,utils,config):
 		math_rewards = []
 		state = gym.reset()
 		math_state = math_gym.reset()
+		if e == 7:
+			print('hi')
 		for t in range(config.tmax):
 			suggestion,log_prob,value = agent.act(state)
+			if np.isnan(suggestion).any():
+				print('nan')
 			route = utils.route_from_suggestion(suggestion)
 			next_state,reward = gym.step(route)
 			# math comparison
