@@ -3,8 +3,8 @@ import numpy as np
 class Config(object):
     def __init__(self): 
         self.keys = {
-                    0:'style',
-                    1:'techniques',
+                    0:'grade',
+                    1:'terrain_type',
                     2:'height_friendly',
                     3:'finish_location',
                     4:'start_location',
@@ -13,8 +13,8 @@ class Config(object):
                     7:'intensity',
                     8:'complexity',
                     9:'intra_difficulty',
-                    10:'hold_sets',
-                    11:'grade'
+                    10:'style',
+                    11:'techniques'
                 }
         # Example grades and techniques
         # 0:'blue',
@@ -27,25 +27,31 @@ class Config(object):
         # 7:'grey',
         # 8:'black',
         # 9:'white'
-        #     0:"toe hooking",
-        #     1:"heel hooking",
-        #     2:"mantle",
-        #     3:'gaston',
-        #     4:'twist',
-        #     5:'cross',
-        #     6:'campus',
-        #     7:'layback',
-        #     8:'stemming'
+            # 0:"toe hooking",
+            # 1:"heel hooking",
+            # 2:"mantle",
+            # 3:'gaston',
+            # 4:'twist',
+            # 5:'cross',
+            # 6:'campus',
+            # 7:'layback',
+            # 8:'stemming',
+            # 9:'lock off',
+            # 10:'Dyno',
+            # 11:'high step',
+            # 12:'flagging',
+            # 13:'Bumping'
         self.grade_technique_keys = np.array([
-            [0,0,0,0,0,0,0,1,1],
-            [0,0,0,0,0,0,0,1,1],
-            [0,0,0,0,0,1,0,1,1],
-            [0,1,0,0,0,1,0,1,1],
-            [1,1,0,0,0,1,0,1,1],
-            [1,1,0,0,1,1,0,1,1],
-            [1,1,0,1,1,1,0,1,1],
-            [1,1,1,1,1,1,0,1,1],
-            [1,1,1,1,1,1,1,1,1]
+            [0,0,0,0,0,0,0,1,1,0,0,0,0,0],
+            [0,0,0,0,0,0,0,1,1,0,0,0,0,0],
+            [0,0,0,0,0,1,0,1,1,0,0,0,0,0],
+            [0,1,0,0,0,1,0,1,1,0,0,0,0,0],
+            [1,1,0,0,0,1,0,1,1,0,0,0,0,0],
+            [1,1,0,0,1,1,0,1,1,0,0,0,0,0],
+            [1,1,0,1,1,1,0,1,1,0,1,0,0,0],
+            [1,1,1,1,1,1,0,1,1,0,0,1,0,0],
+            [1,1,1,1,1,1,0,1,1,0,0,1,1,0],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,0]
         ])
         # Example terrain types
                 # 0:"roof",
@@ -53,10 +59,10 @@ class Config(object):
                 # 2:"vertical",
                 # 3:"slab"
         self.terrain_technique_keys = np.array([
-            [1,1,0,1,1,1,1,1,0],
-            [1,1,0,1,1,1,1,1,0],
-            [1,1,1,1,1,1,1,1,1],
-            [1,1,1,1,1,1,0,1,1],
+            [1,1,0,1,1,1,1,1,0,0,0,0,1,0],
+            [1,1,0,1,1,1,1,1,0,0,0,0,1,0],
+            [1,1,1,1,1,1,1,1,1,1,0,0,1,0],
+            [1,1,1,1,1,1,0,1,1,1,1,1,1,0],
         ])
         self.total_routes = 100
         self.num_reset_routes = 1
