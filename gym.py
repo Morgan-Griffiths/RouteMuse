@@ -19,7 +19,14 @@ When the network or math is looking at what route to make,
 we should subtract the routes that will be stripped first,
 before calculating the distance.
 
-could add num_routes to the gym class
+The historical routes are populated by stripped routes over time
+They are initially seeded by the same number of routes and the active routes.
+Can be used for determining the novelty factor.
+
+The novelty factor contains a few variables:
+The age of the compared routes (The importance will decay with age)
+The distance between the categories (mean?)
+the weight of each category (how important is it to be distant?)
 """
 
 class Gym(object):
@@ -55,6 +62,7 @@ class Gym(object):
         """
         self.goals = self.utils.gen_random_goals(self.num_routes)
         self.routes = self.utils.gen_random_routes(self.num_routes)
+        self.historical_routes = self.utils.gen_random_routes(self.num_routes)
         self.route_shape = self.routes.shape[1]
         self.reset_index = 0
         self.set_index = 0
@@ -81,6 +89,7 @@ class Gym(object):
 
     def strip_route(self):
         empty_route = np.zeros(self.route_shape)
+        self.historical_routes[self.reset_index][:] = self.routes[self.reset_index][:]
         self.routes[self.reset_index][:] = empty_route
         self.update_reset_index() 
 
@@ -98,6 +107,7 @@ class Gym(object):
         """
         empty_route = np.zeros(self.route_shape)
         for _ in range(num_routes):
+            self.historical_routes[self.reset_index][:] = self.routes[self.reset_index][:]
             self.routes[self.reset_index] = empty_route
             self.update_reset_index()
 
