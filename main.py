@@ -59,12 +59,10 @@ def train_network(agent,utils,config):
 		math_rewards = []
 		state = gym.reset()
 		math_state = math_gym.reset()
-		if e == 7:
-			print('hi')
 		for t in range(config.tmax):
 			suggestion,log_prob,value = agent.act(state)
-			if np.isnan(suggestion).any():
-				print('nan')
+			# if np.isnan(suggestion).any():
+			# 	print('nan')
 			route = utils.route_from_suggestion(suggestion)
 			next_state,reward = gym.step(route)
 			# math comparison

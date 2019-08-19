@@ -11,6 +11,12 @@ Combined torso with dual output
 2 Options:
 use categorical for each slice
 use softmax and torch.log for whole
+
+Inputs:
+Active routes
+Historical routes (for novelty)
+Current distance (minus stripped routes)
+Can use the mask in the foward pass to auto restrict which techniques to suggest.
 """
 
 class PPO_net(nn.Module):
