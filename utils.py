@@ -161,10 +161,29 @@ class Utilities(object):
         return e_x / e_x.sum(axis=0)
 
     def route_from_distance(self,distance):
+        """
+        Deterministic route creation
+        """
         route = np.zeros(self.total_fields)
         mask = []
-        for index in self.field_indexes:
-            location = np.where(distance[index[0]:index[1]] == np.max(distance[index[0]:index[1]]))[0]
+        for key,index in enumerate(self.field_indexes):
+            if self.keys[key] == 'techniques':
+                # Apply masks
+                combined_mask = loc_mask * grade_mask
+                # renorm probabilities
+                field_location = distance[index[0]:index[1]] + np.abs(np.min(distance[index[0]:index[1]]))
+                field_location *= combined_mask.reshape(combined_mask.shape[1])
+                location = np.where(field_location == np.max(field_location))[0]
+            else:
+                location = np.where(distance[index[0]:index[1]] == np.max(distance[index[0]:index[1]]))[0]
+            # Get mask for terrain type and grade
+            if self.keys[key] == 'grade':
+                # Grade
+                grade_mask = self.grade_technique_mask[location]
+            elif self.keys[key] == 'terrain_type':
+                # terrain type
+                loc_mask = self.terrain_technique_mask[location]
+
             mask.append(location+index[0])
         mask = np.array(Utilities.flatten_list(mask))
         route[mask] = 1
@@ -189,7 +208,7 @@ class Utilities(object):
             # Get mask for terrain type and grade
             if self.keys[key] == 'grade':
                 # Grade
-                grade_mask = self.grade_technique_mask[field_choice]
+                grade_mask = self.grade_technique_mask[field_choice-index[0]]
             elif self.keys[key] == 'terrain_type':
                 # terrain type
                 loc_mask = self.terrain_technique_mask[field_choice-index[0]]
@@ -224,7 +243,7 @@ class Utilities(object):
             # Get mask for terrain type and grade
             if self.keys[key] == 'grade':
                 # Grade
-                grade_mask = self.grade_technique_mask[field_choice]
+                grade_mask = self.grade_technique_mask[field_choice-index[0]]
             elif self.keys[key] == 'terrain_type':
                 # terrain type
                 loc_mask = self.terrain_technique_mask[field_choice-index[0]]
