@@ -20,7 +20,7 @@ def build_data():
                 2:"vertical",
                 3:"slab"
     },
-    'locations': {0:"Red South",
+    'location': {0:"Red South",
                     1:"Red Roof",
                     2:"Red North",
                     3:"Split Seam",

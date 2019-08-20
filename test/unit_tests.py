@@ -3,8 +3,8 @@ import sys
 import numpy as np
 
 from test_data import build_data
-# sys.path.append('/Users/morgan/Code/RouteMuse/')
-sys.path.append('/home/kenpachi/Code/RouteMuse/')
+sys.path.append('/Users/morgan/Code/RouteMuse/')
+# sys.path.append('/home/kenpachi/Code/RouteMuse/')
 from utils import Utilities
 from config import Config
 
