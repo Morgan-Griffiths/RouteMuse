@@ -11,7 +11,7 @@ keys = {
     2:'height_friendly',
     3:'finish_location',
     4:'start_location',
-    5:'locations',
+    5:'location',
     6:'risk',
     7:'intensity',
     8:'complexity',
@@ -40,6 +40,7 @@ keys = {
 class Utilities(object):
     def __init__(self,json_obj,config):
         self.keys = config.keys
+        self.reverse_keys = {v:k for k,v in self.keys.items()}
         self.route_array,self.field_indexes,self.field_lengths,self.field_dictionary = self.return_field_objects(json_obj)
         self.grade_technique_mask = config.grade_technique_keys
         self.terrain_technique_mask = config.terrain_technique_keys
@@ -160,7 +161,7 @@ class Utilities(object):
         e_x = np.exp(x - np.max(x))
         return e_x / e_x.sum(axis=0)
 
-    def route_from_distance(self,distance):
+    def deterministic_route(self,distance):
         """
         Deterministic route creation
         """
@@ -217,7 +218,7 @@ class Utilities(object):
         mask = np.array(Utilities.flatten_list(mask))
         route[mask] = 1
         return route
-
+        
     ### For the network ###
 
     def route_from_suggestion(self,suggestion):
@@ -234,12 +235,13 @@ class Utilities(object):
                 # Apply masks
                 combined_mask = loc_mask * grade_mask
                 field_location *= combined_mask
+
                 # renorm probabilities
+                assert np.sum(field_location) != 0
                 field_location = field_location / np.sum(field_location)
-            # if np.isnan(field_location).any():
-            #     print('nan')
+            if np.isnan(field_location).any():
+                print('nan')
             field_choice = np.random.choice(np.arange(index[0],index[1]),p=field_location,replace=False)
-            
             # Get mask for terrain type and grade
             if self.keys[key] == 'grade':
                 # Grade
