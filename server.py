@@ -20,6 +20,8 @@ from DB
 - grades
 - goals
 
+convert routes from objs to arrays
+
 passes the fields,grades, routes (historical and active, minus the active location routes) 
     to the suggestion engine
 
