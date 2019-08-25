@@ -67,7 +67,7 @@ def plot(means,stds,name='DDPG',game='Tennis'):
     # plt.close()
 
 if __name__ == "__main__":
-    # means, stds = pickle.load(open('maddpg_scores.p', 'rb'))
+    # means, stds = pickle.load(open('PPO_scores.p', 'rb'))
     # test
     means = np.arange(5)
     mins = np.ones(5)

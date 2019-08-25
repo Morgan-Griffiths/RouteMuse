@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import numpy as np 
 import os
 
-from Network import PPO_net
+from models import PPO_net
 
 class PPO(object):
     def __init__(self,nS,nA,indicies,config):
@@ -132,9 +132,11 @@ class PPO(object):
         
         # ratio = (new_actions - actions)**2
         # ratio = new_actions / actions
-        ratio = new_log_probs / log_probs
+        ratio = (new_log_probs - log_probs)**2
+
+        # ratio = new_log_probs / log_probs
         clip = torch.clamp(ratio,1-self.epsilon,1+self.epsilon)
-        clipped_surrogate = torch.min(clip*TD_errors,ratio*TD_errors)
+        clipped_surrogate = torch.min(clip*advs,ratio*advs)
 
         self.optimizer.zero_grad()
         actor_loss = clipped_surrogate.mean()

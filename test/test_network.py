@@ -5,12 +5,13 @@ from collections import namedtuple,deque
 import time
 import pickle
 
-from plot import plot,plot_episode
+from plots.plot import plot,plot_episode
 from Network import PPO_net
 from gym import Gym
 from utils import Utilities
 from config import Config
-from ppo_agent import PPO
+from Agents.ppo_agent import PPO
+from Agents.DDPG import ddpg_agent
 # sys.path.append('/Users/morgan/Code/RouteMuse/test')
 sys.path.append('/home/kenpachi/Code/RouteMuse/test')
 print('path',os.getcwd())
@@ -24,13 +25,13 @@ Generate a unique hash for each route
 """
 
 def main():
-	# Instantiate objects
-	config = Config()
-	fields = build_data()
-	utils = Utilities(fields,config)
-	agent = PPO(utils.total_fields,utils.total_fields,utils.field_indexes,config)
-	# train on data
-	verify_network(agent,utils,config)
+    # Instantiate objects
+    config = Config()
+    fields = build_data()
+    utils = Utilities(fields,config)
+    agent = PPO(utils.total_fields,utils.total_fields,utils.field_indexes,config)
+    # train on data
+    verify_network(agent,utils,config)
 
 def verify_network(agent,utils,config):
     """
@@ -64,7 +65,7 @@ def verify_network(agent,utils,config):
             route = utils.route_from_suggestion(suggestion)
             next_state,reward = gym_network.step(route)
             # Compare with math
-            math_route = utils.route_from_distance(math_state)
+            math_route = utils.deterministic_route(math_state)
             math_next_state, math_reward = gym_math.step(math_route)
             math_rewards.append(math_reward)
             math_loss.append(gym_math.loss)

@@ -5,14 +5,14 @@ from collections import namedtuple,deque
 import time
 import pickle
 
-from plot import plot
+from plots.plot import plot
 from Network import PPO_net
 from gym import Gym
 from utils import Utilities
 from config import Config
-from ppo_agent import PPO
-# sys.path.append('/Users/morgan/Code/RouteMuse/test')
-sys.path.append('/home/kenpachi/Code/RouteMuse/test')
+from Agents.ppo_agent import PPO
+sys.path.append('/Users/morgan/Code/RouteMuse/test')
+# sys.path.append('/home/kenpachi/Code/RouteMuse/test')
 print('path',os.getcwd())
 from test_data import build_data
 
@@ -25,7 +25,8 @@ Generate a unique hash for each route
 
 def main():
 	# Instantiate objects
-	config = Config()
+	agent_name = 'PPO'
+	config = Config(agent_name)
 	fields = build_data()
 	utils = Utilities(fields,config)
 	agent = PPO(utils.total_fields,utils.total_fields,utils.field_indexes,config)
@@ -60,13 +61,13 @@ def train_network(agent,utils,config):
 		state = gym.reset()
 		math_state = math_gym.reset()
 		for t in range(config.tmax):
-			suggestion,log_prob,value = agent.act(state)
-			# if np.isnan(suggestion).any():
-			# 	print('nan')
+			# Normalize state for network
+			normalized_state = normalize(state)
+			suggestion,log_prob,value = agent.act(normalized_state)
 			route = utils.route_from_suggestion(suggestion)
 			next_state,reward = gym.step(route)
 			# math comparison
-			math_route = utils.route_from_distance(math_state)
+			math_route = utils.deterministic_route(math_state)
 			math_next_state,math_reward = math_gym.step(math_route)
 			math_rewards.append(math_reward)
 			math_state = math_next_state
@@ -100,6 +101,10 @@ def train_network(agent,utils,config):
 				# save policy
 				agent.save_weights(config.checkpoint_path)
 				max_mean = r_mean
+
+def normalize(arr):
+	return (arr - arr.min()) / (arr.max() - arr.min())
+	
 
 if __name__ == '__main__':
 	# print('path',sys.path[0])
