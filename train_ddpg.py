@@ -54,7 +54,6 @@ def train_network(agent,gym,math_gym,config):
     """
     For plotting - plot the math mean error versions along with the agent mean
     """
-    experience = namedtuple('experience',field_names=['state','value','log_prob','action','reward','next_state'])
     # Compared training with math baseline
     tic = time.time()
     # Collections

@@ -1,6 +1,5 @@
-import numpy as np 
+import numpy as np
 import json
-
 """
 Needs to be loaded with 
 1. json object of gym data
@@ -11,7 +10,7 @@ keys = {
     2:'height_friendly',
     3:'finish_location',
     4:'start_location',
-    5:'location',
+    5:'locations',
     6:'risk',
     7:'intensity',
     8:'complexity',
@@ -19,6 +18,8 @@ keys = {
     10:'terrain_types',
     11:'grade'
 }
+
+Field dictionary is the opposite of keys. Key is string, value is position.
 3. grade_technique_mask is a matrix of values, 1s where the technique is possible
  [[
      1,0,0,0
@@ -37,20 +38,22 @@ keys = {
  willl renormalize the category and select the techniques from then on. If we want to sample
  without replacement, then add replace=False
 """
+
+
 class Utilities(object):
-    def __init__(self,json_obj,config):
+    def __init__(self, json_obj, config):
         self.keys = config.keys
-        self.reverse_keys = {v:k for k,v in self.keys.items()}
-        self.route_array,self.field_indexes,self.field_lengths,self.field_dictionary = self.return_field_objects(json_obj)
+        self.route_array, self.field_indexes, self.field_lengths, self.field_dictionary = self.return_field_objects(
+            json_obj)
         self.grade_technique_mask = config.grade_technique_keys
         self.terrain_technique_mask = config.terrain_technique_keys
         self.num_fields = len(self.field_indexes)
         assert self.num_fields == 12
         self.total_fields = self.field_indexes[-1][-1]
         print('total number of fields', self.total_fields)
-        self.epsilon = 1e-7 
+        self.epsilon = 1e-7
 
-    def return_field_objects(self,j_fields):
+    def return_field_objects(self, j_fields):
         """
         Expects fields to be a json object
 
@@ -60,49 +63,52 @@ class Utilities(object):
         Array of the fields (for quick indexing)
         indicies for each field type
         """
-        fields,field_dictionary = self.convert_json(j_fields)
-        field_indexes,field_lengths = self.return_indicies(fields)
+        fields, field_dictionary = self.convert_json(j_fields)
+        field_indexes, field_lengths = self.return_indicies(fields)
         flat_fields = Utilities.flatten_list(fields)
         ROUTE_ARRAY = np.array(flat_fields)
-        return ROUTE_ARRAY,field_indexes,field_lengths,field_dictionary
+        return ROUTE_ARRAY, field_indexes, field_lengths, field_dictionary
 
-    def convert_json(self,json_obj):
+    def convert_json(self, json_obj):
         """
         Loads json_obj, converts resulting dictionary to list
         """
         j_dictionary = json.loads(json_obj)
         fields = [j_dictionary[key] for key in self.keys.values()]
         fields_list = [list(field.values()) for field in fields]
-        return fields_list,j_dictionary
+        return fields_list, j_dictionary
 
-    def return_indicies(self,fields):
+    def return_indicies(self, fields):
         """
         Returns 
         the indicies of each field type. E.G. Styles goes from 0-18
         the length of each field type (num occurances)
         """
         length = len(fields)                                # Number of fields
-        field_lengths = [len(field) for field in fields]    # Size of each fields
-        field_indexes = [(0,field_lengths[0])]
+        field_lengths = [len(field)
+                         for field in fields]    # Size of each fields
+        field_indexes = [(0, field_lengths[0])]
         running_index = field_lengths[0]
-        for i in range(1,len(field_lengths)):
-            field_indexes.append((running_index,field_lengths[i]+running_index))
+        for i in range(1, len(field_lengths)):
+            field_indexes.append(
+                (running_index, field_lengths[i]+running_index))
             running_index += field_lengths[i]
-        return field_indexes,field_lengths
+        return field_indexes, field_lengths
 
-    def gen_random_routes(self,num_routes):
+    def gen_random_routes(self, num_routes):
         """
         Gen ints between the field indicies.
 
         can gen multiple in a given category for instance multiple styles
         """
-        routes = np.zeros((num_routes,self.field_indexes[-1][-1]))
+        routes = np.zeros((num_routes, self.field_indexes[-1][-1]))
         for n in range(num_routes):
-            mask = [np.random.choice(np.arange(start,end)) for start,end in self.field_indexes]
+            mask = [np.random.choice(np.arange(start, end))
+                    for start, end in self.field_indexes]
             routes[n][mask] = 1
         return routes
 
-    def convert_route_to_readable(self,route):
+    def convert_route_to_readable(self, route):
         """
         Returns human readable routes
         """
@@ -111,17 +117,19 @@ class Utilities(object):
 
     ### Goals ###
 
-    def make_default_goals(self,num_routes):
+    def make_default_goals(self, num_routes):
         """
         Returns evenly distributed goals
         """
         goals = np.zeros(self.total_fields)
-        defaults = [num_routes / field_length for field_length in self.field_lengths]
-        for i,default in enumerate(defaults):
-            goals[self.field_indexes[i][0]:self.field_indexes[i][1]] = np.full(self.field_lengths[i],default)
+        defaults = [num_routes /
+                    field_length for field_length in self.field_lengths]
+        for i, default in enumerate(defaults):
+            goals[self.field_indexes[i][0]:self.field_indexes[i]
+                  [1]] = np.full(self.field_lengths[i], default)
         return goals
 
-    def random_num(self,gym_routes,N):
+    def random_num(self, gym_routes, N):
         """
         gym_routes : Int 
         N : Int
@@ -136,16 +144,17 @@ class Utilities(object):
         arr = np.zeros(N)
         arr[0] = np.random.random() * gym_routes
         gym_routes -= arr[0]
-        for i in range(1,N-1):
+        for i in range(1, N-1):
             arr[i] = np.random.random() * gym_routes
             gym_routes -= arr[i]
         arr[-1] = gym_routes
         return arr
 
-    def gen_random_goals(self,num_routes):
+    def gen_random_goals(self, num_routes):
         # goals = np.zeros(self.total_fields)
-        
-        values = [self.random_num(num_routes,index[1]-index[0]) for index in (self.field_indexes)]
+
+        values = [self.random_num(num_routes, index[1]-index[0])
+                  for index in (self.field_indexes)]
         goals = np.array(Utilities.flatten_list(values))
         return goals
 
@@ -161,74 +170,57 @@ class Utilities(object):
         e_x = np.exp(x - np.max(x))
         return e_x / e_x.sum(axis=0)
 
-    def deterministic_route(self,distance):
+    def deterministic_goal_route(self, distance):
         """
         Deterministic route creation
         """
         route = np.zeros(self.total_fields)
         mask = []
-        for key,index in enumerate(self.field_indexes):
-            if self.keys[key] == 'techniques':
-                # Apply masks
-                combined_mask = loc_mask * grade_mask
-                # renorm probabilities
-                field_location = distance[index[0]:index[1]] + np.abs(np.min(distance[index[0]:index[1]]))
-                field_location *= combined_mask.reshape(combined_mask.shape[1])
-                location = np.where(field_location == np.max(field_location))[0]
-            else:
-                location = np.where(distance[index[0]:index[1]] == np.max(distance[index[0]:index[1]]))[0]
-            # Get mask for terrain type and grade
-            if self.keys[key] == 'grade':
-                # Grade
-                grade_mask = self.grade_technique_mask[location]
-            elif self.keys[key] == 'terrain_type':
-                # terrain type
-                loc_mask = self.terrain_technique_mask[location]
-
+        for key, index in enumerate(self.field_indexes):
+            location = np.where(distance[index[0]:index[1]] == np.max(
+                distance[index[0]:index[1]]))[0]
             mask.append(location+index[0])
-        mask = np.array(Utilities.flatten_list(mask))
-        route[mask] = 1
+        print('mask', mask)
+        if isinstance(mask[0], list):
+            mask = np.array(Utilities.flatten_list(mask))
+        route[np.array(mask)] = 1
         return route
 
-    def probabilistic_route(self,distance):
-        route = np.zeros(self.total_fields)
+    def probabilistic_goal_route(self, distance):
+        probs = np.zeros(self.total_fields)
         mask = []
-        for key,index in enumerate(self.field_indexes):
-            field_location = distance[index[index[0]:index[1]]]
-            if self.keys[key] == 'techniques':
-                # Apply masks
-                combined_mask = loc_mask * grade_mask
-                field_location *= combined_mask
-                # renorm probabilities
-                field_location = field_location / np.sum(field_location)
-            # We add the min to turn all values >= 0
-            selection_prob = Utilities.softmax(distance[field_location]+np.abs(np.min(field_location)))
-            # Make sure no probability is 0
-            # selection_prob = (selection_prob + self.epsilon)
-            field_choice = np.random.choice(np.arange(index[0],index[1]),p=selection_prob)
-            # Get mask for terrain type and grade
-            if self.keys[key] == 'grade':
-                # Grade
-                grade_mask = self.grade_technique_mask[field_choice-index[0]]
-            elif self.keys[key] == 'terrain_type':
-                # terrain type
-                loc_mask = self.terrain_technique_mask[field_choice-index[0]]
+        for key, index in enumerate(self.field_indexes):
+            field_location = distance[index[0]:index[1]]
+            selection_prob = field_location+np.abs(np.min(field_location)*2)
+            selection_prob /= np.sum(selection_prob)
+            probs[index[0]:index[1]] = selection_prob
+        return probs
 
-            mask.append(field_choice + index[0])
-        mask = np.array(Utilities.flatten_list(mask))
-        route[mask] = 1
-        return route
-        
-    ### For the network ###
-
-    def route_from_suggestion(self,suggestion):
+    def route_from_probabilities(self, probabilities):
         """
         For converting network outputs to actual routes
         """
         route = np.zeros(self.total_fields)
-        
         mask = []
-        for key,index in enumerate(self.field_indexes):
+        for index in self.field_indexes:
+            field_location = probabilities[index[0]:index[1]]
+            field_choice = np.random.choice(
+                np.arange(index[0], index[1]), p=field_location, replace=False)
+            mask.append(field_choice)
+        # mask = np.array(Utilities.flatten_list(mask))
+        route[mask] = 1
+        return route
+
+    ### For the network ###
+
+    def route_from_network(self, suggestion):
+        """
+        For converting network outputs to actual routes
+        """
+        route = np.zeros(self.total_fields)
+
+        mask = []
+        for key, index in enumerate(self.field_indexes):
             field_location = suggestion[index[0]:index[1]]
             # Zero out the possibilities
             if self.keys[key] == 'techniques':
@@ -241,7 +233,8 @@ class Utilities(object):
                 field_location = field_location / np.sum(field_location)
             if np.isnan(field_location).any():
                 print('nan')
-            field_choice = np.random.choice(np.arange(index[0],index[1]),p=field_location,replace=False)
+            field_choice = np.random.choice(
+                np.arange(index[0], index[1]), p=field_location, replace=False)
             # Get mask for terrain type and grade
             if self.keys[key] == 'grade':
                 # Grade
