@@ -48,7 +48,6 @@ class Utilities(object):
         self.grade_technique_mask = config.grade_technique_keys
         self.terrain_technique_mask = config.terrain_technique_keys
         self.num_fields = len(self.field_indexes)
-        assert self.num_fields == 12
         self.total_fields = self.field_indexes[-1][-1]
         print('total number of fields', self.total_fields)
         self.epsilon = 1e-7
@@ -108,7 +107,7 @@ class Utilities(object):
             routes[n][mask] = 1
         return routes
 
-    def convert_route_to_readable(self, route):
+    def display_route(self, route):
         """
         Returns human readable routes
         """
@@ -180,7 +179,6 @@ class Utilities(object):
             location = np.where(distance[index[0]:index[1]] == np.max(
                 distance[index[0]:index[1]]))[0]
             mask.append(location+index[0])
-        print('mask', mask)
         if isinstance(mask[0], list):
             mask = np.array(Utilities.flatten_list(mask))
         route[np.array(mask)] = 1
