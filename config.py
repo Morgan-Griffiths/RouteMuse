@@ -9,7 +9,7 @@ class Config(object):
             2: 'height_friendly',
             3: 'finish_location',
             4: 'start_location',
-            5: 'location',
+            5: 'locations',
             6: 'risk',
             7: 'intensity',
             8: 'complexity',
@@ -18,6 +18,8 @@ class Config(object):
             11: 'techniques'
         }
         # For calculating the novelty feature
+        # 0 means not taken into account, 1 means its the only factor
+        # 0.5 means its split 50/50 with the goal
         self.novelty_weights_dist = {
             0: 0,
             1: 0,
@@ -84,14 +86,17 @@ class Config(object):
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0],
             [1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0],
         ])
-        self.total_routes = 100
+        self.total_routes = 10
         self.num_reset_routes = 1
         self.episodes = 2000
-        self.tmax = 100
+        self.tmax = self.total_routes
         self.seed = 1234
+        self.novelty_type = 'mean'
+        self.field = 'grade'
         self.name = agent
-        if agent == 'PPO':
+        if agent == "PPO":
             # PPO
+            self.name = "PPO"
             self.gae_lambda = 0.95
             self.num_agents = 1
             self.batch_size = 32
@@ -103,6 +108,8 @@ class Config(object):
             self.lr = 1e-4
             self.L2 = 0.01
             self.checkpoint_path = 'model_weights/PPO.ckpt'
+            self.route_type = 'rl'
+
         elif agent == "ddpg":
             self.num_agents = 2
             self.QLR = 0.001
@@ -137,7 +144,12 @@ class Config(object):
             self.SGD_epoch = 1
             self.checkpoint_path = 'model_weights/ddpg.ckpt'
 
-    def set_importance_weights(self, new_weights):
+        elif agent == 'math':
+            self.route_type = 'rl'
+        else:
+            raise ValueError("agent not understood. Must be 'math' or 'PPO'")
+
+    def set_novelty_weights(self, new_weights):
         self.novelty_weights_dict = new_weights
         self.novelty_weights = np.array(
             list(self.novelty_weights_dict.values()))
