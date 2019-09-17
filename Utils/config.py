@@ -15,7 +15,7 @@ class Config(object):
             8: 'complexity',
             9: 'intra_difficulty',
             10: 'style',
-            11: 'techniques'
+            11: 'teaches' # TODO turn into techniques
         }
         # For calculating the novelty feature
         # 0 means not taken into account, 1 means its the only factor
@@ -93,6 +93,8 @@ class Config(object):
         self.seed = 1234
         self.novelty_type = 'mean'
         self.field = 'grade'
+        self.fields_to_ignore = ['Primary Hold Set','Finish Location','Start Location','Style','Length']
+        self.goalfields_to_ignore = ['Primary Hold Set','Finish Location','Start Location','Style','Length','Location','Setter','Set Screwed','Stripped','Date','Notes']
         self.name = agent
         if agent == "PPO":
             # PPO
@@ -143,6 +145,7 @@ class Config(object):
             self.print_every = 4
             self.SGD_epoch = 1
             self.checkpoint_path = 'model_weights/ddpg.ckpt'
+            self.route_type = 'rl'
 
         elif agent == 'math':
             self.route_type = 'rl'

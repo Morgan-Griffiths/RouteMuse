@@ -5,19 +5,23 @@ Needs to be loaded with
 1. json object of gym data
 2. key dictionary akin to 
 keys = {
-    0:'style',
-    1:'techniques',
-    2:'height_friendly',
-    3:'finish_location',
-    4:'start_location',
-    5:'locations',
-    6:'risk',
-    7:'intensity',
-    8:'complexity',
-    9:'intra_difficulty',
-    10:'terrain_types',
-    11:'grade'
+    0: 'grade',
+    1: 'terrain_type',
+    2: 'height_friendly',
+    3: 'finish_location',
+    4: 'start_location',
+    5: 'locations',
+    6: 'risk',
+    7: 'intensity',
+    8: 'complexity',
+    9: 'intra_difficulty',
+    10: 'style',
+    11: 'teaches' # TODO turn into techniques
 }
+
+Put the stripped routes into historical? Or a special category.
+
+pass locations to strip. mask out all of those routes -> put in historical.
 
 
 field_dictionary : (dictionary) Field : subfields e.g. "grade" : k:0 , v:blue
@@ -38,13 +42,20 @@ goal_weights : (array) weights for how important the goals are in those fields
 
 
 class ServerUtilities(object):
-    def __init__(self, routes,historical_routes,fields, config):
-        self.field_dictionary,self.reverse_field_dictionary = self.parse_fields(fields)
+    def __init__(self, active_routes,historical_routes,fields, config):
+        self.fields_to_ignore = config.fields_to_ignore
+        self.goalfields_to_ignore = config.goalfields_to_ignore
+        self.field_dictionary,self.reverse_field_dictionary,self.field_names,self.goal_names = self.parse_fields(fields)
         self.field_indexes, self.field_lengths = self.return_indicies()
         self.keys,self.reverse_keys,self.route_array = self.return_keys()
         self.num_fields = len(self.field_indexes)
         self.total_fields = self.field_indexes[-1][-1]
         print('total number of fields', self.total_fields)
+        print('num_fields', self.num_fields)
+        print('reverse_keys', self.reverse_keys)
+        print('reverse_field_dictionary', self.reverse_field_dictionary)
+        print('field_names', self.field_names)
+        print('self.route_array',self.route_array)
         # The following should all come from the database
         self.grade_technique_mask = config.grade_technique_keys
         self.terrain_technique_mask = config.terrain_technique_keys
@@ -55,8 +66,19 @@ class ServerUtilities(object):
         self.route_type = config.route_type
         self.epsilon = 1e-7 
         
-        self.route_shape = None
+        self.route_shape = self.total_fields
+        print('self.field_lengths',self.field_lengths)
+        self.goal_shape = self.total_fields - self.field_lengths[0]
         self.prev_loss = None
+
+        self.active_routes = self.convert_to_array(active_routes)
+        self.historical_routes = self.convert_to_array(historical_routes)
+        # print(self.display_route(self.active_routes[-1]))
+        # print(self.display_route(self.active_routes[-2]))
+        print(active_routes[:2])
+        print(self.display_route(self.convert_to_array([active_routes[0]])))
+        print(self.display_route(self.convert_to_array([active_routes[1]])))
+        
         
         ### Route function ###
         if self.route_type == 'math':
@@ -73,23 +95,32 @@ class ServerUtilities(object):
         reverse keys : (dictionary) Field (ex. grade) {subfield(ex. 'blue'):0}
         """
         keys = {}
+        field_names = []
+        goal_names = []
         for field in fields.find():
             # This pulls all the values and skips fields like notes and setters
             # Skip primary holds for now
             try:
-                if field['label'] != 'Primary Hold Set':
+                if field['label'] not in self.fields_to_ignore:
+                    if field['label'] not in self.goalfields_to_ignore:
+                        goal_names.append(field['name'])
                     values = field['values']
+                    field_names.append(field['name'])
                     indicies = np.arange(len(values))
-                    keys[field['label']] = {indicies[i]:values[i] for i in range(len(values))}
+                    keys[field['name']] = {indicies[i]:values[i] for i in range(len(values))}
             except:
                 pass
         reverse_keys = {}
+        i = 0
         for key,value in keys.items():
             subdict = {}
             for k,v in value.items():
-                subdict[v] = int(k)
+                if isinstance(v,float):
+                    v = int(v)
+                subdict[v] = i
+                i += 1
             reverse_keys[key] = subdict
-        return keys,reverse_keys
+        return keys,reverse_keys,field_names,goal_names
 
     def return_indicies(self):
         """
@@ -125,18 +156,7 @@ class ServerUtilities(object):
         mask = np.where(route > 0)[0]
         return self.route_array[mask]
 
-    @staticmethod
-    def flatten_list(nd_list):
-        flat_list = [item for sublist in nd_list for item in sublist]
-        return flat_list
-
     ### Math portion ###
-    @staticmethod
-    def softmax(x):
-        """Compute softmax values for each sets of scores in x."""
-        e_x = np.exp(x - np.max(x))
-        return e_x / e_x.sum(axis=0)
-
     def deterministic_goal_route(self, distance):
         """
         Deterministic route creation
@@ -189,7 +209,7 @@ class ServerUtilities(object):
         for key, index in enumerate(self.field_indexes):
             field_location = suggestion[index[0]:index[1]]
             # Zero out the possibilities
-            if self.keys[key] == 'techniques':
+            if self.keys[key] == 'teaches':
                 # Apply masks
                 combined_mask = loc_mask * grade_mask
                 field_location *= combined_mask
@@ -214,7 +234,7 @@ class ServerUtilities(object):
         route[mask] = 1
         return route
 
-def step(self,suggestion):
+    def step(self,suggestion):
         """
         Converts a series of probabilities to a route. 
         Sets the route. 
@@ -264,18 +284,18 @@ def step(self,suggestion):
         return self.distance,reward
 
     def set_route(self,route):
-        self.routes[self.set_index][:] = route
+        self.active_routes[self.set_index][:] = route
         self.update_set_index()
 
     def strip_route(self):
         empty_route = np.zeros(self.route_shape)
-        self.historical_routes[self.reset_index][:] = self.routes[self.reset_index][:]
-        self.routes[self.reset_index][:] = empty_route
+        self.historical_routes[self.reset_index][:] = self.active_routes[self.reset_index][:]
+        self.active_routes[self.reset_index][:] = empty_route
         self.update_reset_index() 
 
     def bulk_update(self,routes):
         for i in routes.shape[0]:
-            self.routes[self.set_index][:] = routes[i][:]
+            self.active_routes[self.set_index][:] = routes[i][:]
             self.update_reset_index() 
     
     def bulk_strip(self,num_routes):
@@ -287,9 +307,36 @@ def step(self,suggestion):
         """
         empty_route = np.zeros(self.route_shape)
         for _ in range(num_routes):
-            self.historical_routes[self.reset_index][:] = self.routes[self.reset_index][:]
-            self.routes[self.reset_index] = empty_route
+            self.historical_routes[self.reset_index][:] = self.active_routes[self.reset_index][:]
+            self.active_routes[self.reset_index] = empty_route
             self.update_reset_index()
+
+    
+    def bulk_strip_by_location(self,locations):
+        """
+        num_routes : int - number of routes to be reset
+        route_indicies : np.array - indicies of the routes to be replaced.
+
+        first convert locations into array
+        move currently active routes in that location to historical
+        """
+        stripped_locations = np.zeros(self.route_shape)
+        for location in locations:
+            stripped_locations[self.reverse_field_dictionary['location'][location['name']]] = 1
+        stripped_mask = np.where(stripped_locations == 1)[0]
+        route_mask = np.where(self.active_routes[:,stripped_mask] == 1)[0]
+        routes_remaining = np.ones(self.active_routes.shape[0],dtype=bool)
+        routes_remaining[route_mask] = 0
+        print('routes_remaining',routes_remaining)
+        self.stripped_routes = self.active_routes[route_mask,:]
+        self.active_routes = self.active_routes[routes_remaining]
+        # If we want to add them to our historical routes
+        self.historical_routes = np.vstack((self.stripped_routes,self.historical_routes))
+        # print(self.active_routes.shape)
+        # for i in range(self.stripped_routes.shape[0]):
+        #     print('route',self.display_route(self.stripped_routes[i,:]))
+        # for i in range(self.active_routes.shape[0]):
+        #     print('route',self.display_route(self.active_routes[i,:]))
 
     def update_set_index(self):
         self.set_index = (self.set_index + 1) % len(self)
@@ -326,28 +373,28 @@ def step(self,suggestion):
         return novelty_dist,novelty_loss
     
     def mean_active_route(self):
-        return np.mean(self.routes,axis=0)
+        return np.mean(self.active_routes,axis=0)
     
     def active_mean_field_route(self,field_entry,field_choice):
         # Select only that field
         field_location = self.reverse_keys[field_choice]
         field_index = self.field_indexes[field_location]
         field_start = field_index[0]
-        field_mask = np.where(self.routes[:,field_start+field_entry] == 1)[0]
+        field_mask = np.where(self.active_routes[:,field_start+field_entry] == 1)[0]
         assert field_mask.any()
-        desired_routes = self.routes[field_mask,:]
+        desired_routes = self.active_routes[field_mask,:]
         return np.mean(desired_routes,axis=0)
     
     def historical_mean_field_route(self,field_entry,field_choice):
         # Select only that field
         field_location = self.reverse_keys[field_choice]
         field_index = self.field_indexes[field_location]
-        field_mask = np.where(self.routes[:,field_index[0]+field_entry] == 1)[0]
+        field_mask = np.where(self.active_routes[:,field_index[0]+field_entry] == 1)[0]
         hist_field_mask = np.where(self.historical_routes[:,field_index[0]+field_entry] == 1)[0]
         # check if there are any such routes
         assert field_mask.any()
         assert hist_field_mask.any()
-        active_routes = self.routes[field_mask,:]
+        active_routes = self.active_routes[field_mask,:]
         inactive_routes = self.historical_routes[hist_field_mask,:]
         desired_routes = np.concatenate([active_routes,inactive_routes],axis = 0)
         return np.mean(desired_routes,axis=0)
@@ -413,6 +460,57 @@ def step(self,suggestion):
         final_route = self.route_from_probabilities(combined_route)
         return final_route
         
+    # For processing from DB
+
+    def convert_goals(self,dbgoals):
+        """
+        goals is a container from DB
+
+        Have to convert the goals back from goal format to actual values.
+        """
+        goals = np.empty(self.goal_shape,dtype=float)
+        for field in self.goal_names:
+            for dbvalue in dbgoals[field]:
+                key = dbvalue['key']
+                value = float(dbvalue['value'])
+                if key.isdigit():
+                    key = int(dbvalue['key'])
+                goals[self.reverse_field_dictionary[field][key] - self.field_lengths[0]] = self.num_routes / value
+        print('goal shape',goals.shape)
+        self.goals = goals
+
+    def return_suggestions(self):
+        print(self.reverse_keys)
+        print('field',self.field_from_distance('grade'))
+        final_route = novel_probabilistic_route('grade')
+        print('final_route',final_route)
+
+    def convert_to_array(self,routes):
+        arr_routes = np.array([])
+        for route in routes:
+            new_route = np.zeros(self.route_shape)
+            for field in self.field_names:
+                try:
+                    new_route[self.reverse_field_dictionary[field][route[field]]] = 1
+                except:
+                    pass
+            if arr_routes.size == 0:
+                arr_routes = new_route
+            else:
+                arr_routes = np.vstack((new_route,arr_routes))
+        return arr_routes
+
+    @staticmethod
+    def flatten_list(nd_list):
+        flat_list = [item for sublist in nd_list for item in sublist]
+        return flat_list
+
+    @staticmethod
+    def softmax(x):
+        """Compute softmax values for each sets of scores in x."""
+        e_x = np.exp(x - np.max(x))
+        return e_x / e_x.sum(axis=0)
+
     @property
     def distance(self):
         # mean columns in routes
@@ -421,7 +519,7 @@ def step(self,suggestion):
         #     nd_distance = self.goals - current_dist
         #     return nd_distance
         # else:
-        current_dist = np.sum(self.routes,axis = 0)
+        current_dist = np.sum(self.active_routes[self.field_lengths[0]:],axis = 0)
         nd_distance = self.goals - current_dist
         return nd_distance
     
@@ -435,10 +533,10 @@ def step(self,suggestion):
         
     @property
     def loss(self):
-        current_dist = np.sum(self.routes,axis = 0)
+        current_dist = np.sum(self.active_routes[self.field_lengths[0]:],axis = 0)
         nd_distance = self.goals - current_dist
         return np.mean(np.abs(nd_distance))
     
     def __len__(self):
         # Return number of routes
-        return self.routes.shape[0]
+        return self.active_routes.shape[0]
