@@ -17,6 +17,7 @@ class Config(object):
             10: 'style',
             11: 'teaches' # TODO turn into techniques
         }
+        self.terrain_types = {'slab':0,'verticle':1,'overhung':2,'roof':3}
         # For calculating the novelty feature
         # 0 means not taken into account, 1 means its the only factor
         # 0.5 means its split 50/50 with the goal

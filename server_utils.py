@@ -1,4 +1,6 @@
 import numpy as np
+import time
+import datetime
 import json
 """
 Needs to be loaded with 
@@ -19,11 +21,17 @@ keys = {
     11: 'teaches' # TODO turn into techniques
 }
 
+Converts all routes into array format on initialization
+
 Put the stripped routes into historical? Or a special category.
 
-pass locations to strip. mask out all of those routes -> put in historical.
+pass locations to strip. mask out all of those routes -> put in historical. Instantiate new routes with locations taken from the stripped routes.
+Later this will change when locations contain the number of routes we need to set.
+Populate the routes one at a time. To take account of the changing reality created by putting up new routes.
+Mask the routes with terrain types and technique by grade.
+locations that have multiple terrain types will be additive for the mask. So that its the union between the two. As both styles will be possible.
 
-
+Stored Variables:
 field_dictionary : (dictionary) Field : subfields e.g. "grade" : k:0 , v:blue
 field_key_dictionary : (dictionary) Field : subfields e.g. "grade" : k:'blue' , v:0
 keys : (dictionary) of keys [1,len(fields)] to field names
@@ -38,6 +46,17 @@ num_fields : (int) number of fields
 total_fields : (int) number of subfields
 novelty_weights : (array) weights for how important novelty is in those fields
 goal_weights : (array) weights for how important the goals are in those fields
+
+Functions:
+parse_fields : Takes in the field object from DB and returns field_dictionary,reverse_field_dictionary,field_names,goal_names,reverse_field_names
+return_indicies : Returns indicies of each field type
+return_keys :
+display_route : displays the route in human readable form
+### Math ###
+deterministic_goal_route :
+probabilistic_goal_route :
+route_from_probabilities : Takes in a route in the form of probabilities and returns a route of 0s and 1s
+### Network ###
 """
 
 
@@ -45,17 +64,18 @@ class ServerUtilities(object):
     def __init__(self, active_routes,historical_routes,fields, config):
         self.fields_to_ignore = config.fields_to_ignore
         self.goalfields_to_ignore = config.goalfields_to_ignore
-        self.field_dictionary,self.reverse_field_dictionary,self.field_names,self.goal_names = self.parse_fields(fields)
+        self.terrain_types = config.terrain_types
+        self.field_dictionary,self.reverse_field_dictionary,self.field_names,self.goal_names,self.reverse_field_names = self.parse_fields(fields)
         self.field_indexes, self.field_lengths = self.return_indicies()
         self.keys,self.reverse_keys,self.route_array = self.return_keys()
         self.num_fields = len(self.field_indexes)
         self.total_fields = self.field_indexes[-1][-1]
-        print('total number of fields', self.total_fields)
-        print('num_fields', self.num_fields)
-        print('reverse_keys', self.reverse_keys)
-        print('reverse_field_dictionary', self.reverse_field_dictionary)
-        print('field_names', self.field_names)
-        print('self.route_array',self.route_array)
+        # print('total number of fields', self.total_fields)
+        # print('num_fields', self.num_fields)
+        # print('reverse_keys', self.reverse_keys)
+        # print('reverse_field_dictionary', self.reverse_field_dictionary)
+        # print('field_names', self.field_names)
+        # print('self.route_array',self.route_array)
         # The following should all come from the database
         self.grade_technique_mask = config.grade_technique_keys
         self.terrain_technique_mask = config.terrain_technique_keys
@@ -67,7 +87,7 @@ class ServerUtilities(object):
         self.epsilon = 1e-7 
         
         self.route_shape = self.total_fields
-        print('self.field_lengths',self.field_lengths)
+        # print('self.field_lengths',self.field_lengths)
         self.goal_shape = self.total_fields - self.field_lengths[0]
         self.prev_loss = None
 
@@ -75,10 +95,10 @@ class ServerUtilities(object):
         self.historical_routes = self.convert_to_array(historical_routes)
         # print(self.display_route(self.active_routes[-1]))
         # print(self.display_route(self.active_routes[-2]))
-        print(active_routes[:2])
-        print(self.display_route(self.convert_to_array([active_routes[0]])))
-        print(self.display_route(self.convert_to_array([active_routes[1]])))
-        
+        # print(active_routes[:2])
+        # print(self.display_route(self.convert_to_array([active_routes[0]])))
+        # print(self.display_route(self.convert_to_array([active_routes[1]])))
+        self.max_grade = None
         
         ### Route function ###
         if self.route_type == 'math':
@@ -87,6 +107,11 @@ class ServerUtilities(object):
             self.create_route = self.route_from_probabilities
         else:
             raise ValueError("route_type not understood. Must be 'math' or 'rl'")
+
+    def update_max_grade(self,grade):
+        self.max_grade = np.ones(self.field_lengths[1])
+        if self.field_lengths[1] != grade:
+            self.max_grade[grade+1:] = 0
 
     def parse_fields(self,fields):
         """
@@ -97,6 +122,7 @@ class ServerUtilities(object):
         keys = {}
         field_names = []
         goal_names = []
+        reverse_field_names = {}
         for field in fields.find():
             # This pulls all the values and skips fields like notes and setters
             # Skip primary holds for now
@@ -112,6 +138,7 @@ class ServerUtilities(object):
                 pass
         reverse_keys = {}
         i = 0
+        j = 0
         for key,value in keys.items():
             subdict = {}
             for k,v in value.items():
@@ -120,7 +147,9 @@ class ServerUtilities(object):
                 subdict[v] = i
                 i += 1
             reverse_keys[key] = subdict
-        return keys,reverse_keys,field_names,goal_names
+            reverse_field_names[key] = j
+            j += 1
+        return keys,reverse_keys,field_names,goal_names,reverse_field_names
 
     def return_indicies(self):
         """
@@ -154,7 +183,16 @@ class ServerUtilities(object):
         Returns human readable routes
         """
         mask = np.where(route > 0)[0]
+        print(self.route_array[mask])
         return self.route_array[mask]
+
+    def display_all(self, routes):
+        """
+        routes : np.array
+        Returns human readable routes
+        """
+        for i in range(routes.shape[0]):
+            self.display_route(routes[i,:])
 
     ### Math portion ###
     def deterministic_goal_route(self, distance):
@@ -173,13 +211,17 @@ class ServerUtilities(object):
         return route
 
     def probabilistic_goal_route(self, distance):
-        probs = np.zeros(self.total_fields)
+        probs = np.zeros(self.goal_shape)
         mask = []
-        for key, index in enumerate(self.field_indexes):
-            field_location = distance[index[0]:index[1]]
+        location_length = self.field_lengths[0]
+        for i in range(1,len(self.field_indexes)):
+            index = self.field_indexes[i]
+            start = index[0]-location_length
+            end = index[1]-location_length
+            field_location = distance[start:end]
             selection_prob = field_location+np.abs(np.min(field_location)*2)
             selection_prob /= np.sum(selection_prob)
-            probs[index[0]:index[1]] = selection_prob
+            probs[start:end] = selection_prob
         return probs
 
     def route_from_probabilities(self, probabilities):
@@ -310,6 +352,35 @@ class ServerUtilities(object):
             self.historical_routes[self.reset_index][:] = self.active_routes[self.reset_index][:]
             self.active_routes[self.reset_index] = empty_route
             self.update_reset_index()
+    @staticmethod
+    def asvoid(arr):
+        arr = np.ascontiguousarray(arr)
+        if np.issubdtype(arr.dtype,np.floating):
+            arr += 0
+        return arr.view(np.dtype((np.void,arr.dtype.itemsize * arr.shape[-1])))
+    @staticmethod
+    def inNd(a,b,assume_unique=False):
+        a = ServerUtilities.asvoid(a)
+        b = ServerUtilities.asvoid(b)
+        return np.in1d(a,b,assume_unique)
+
+    def bulk_strip_by_route(self,routes):
+        arr_routes = self.convert_to_array(routes)
+        stripped_mask = []
+        for i in range(arr_routes.shape[0]):
+            stripped_mask.append(np.where((self.active_routes == arr_routes[i]).all(axis=1))[0][0])
+        stripped_mask = np.array(stripped_mask)
+        print('stripped_mask',stripped_mask)
+        self.stripped_routes = self.active_routes[stripped_mask,:]
+        print('self.active_routes[stripped_mask,:]',self.active_routes[stripped_mask,:])
+        print('self.stripped_routes.shape',self.stripped_routes.shape)
+        self.suggested_routes = self.stripped_routes
+        self.suggested_routes[self.field_lengths[self.reverse_field_names['location']]:] = 0
+        routes_remaining = np.ones(self.active_routes.shape[0],dtype=bool)
+        routes_remaining[stripped_mask] = 0
+        self.active_routes = self.active_routes[routes_remaining]
+        self.historical_routes = np.vstack((self.stripped_routes,self.historical_routes))
+        self.display_all(self.stripped_routes)
 
     
     def bulk_strip_by_location(self,locations):
@@ -327,16 +398,14 @@ class ServerUtilities(object):
         route_mask = np.where(self.active_routes[:,stripped_mask] == 1)[0]
         routes_remaining = np.ones(self.active_routes.shape[0],dtype=bool)
         routes_remaining[route_mask] = 0
-        print('routes_remaining',routes_remaining)
         self.stripped_routes = self.active_routes[route_mask,:]
+        self.suggested_routes = self.stripped_routes
+        self.suggested_routes[self.field_lengths[self.reverse_field_names['location']]:] = 0
         self.active_routes = self.active_routes[routes_remaining]
         # If we want to add them to our historical routes
         self.historical_routes = np.vstack((self.stripped_routes,self.historical_routes))
-        # print(self.active_routes.shape)
-        # for i in range(self.stripped_routes.shape[0]):
-        #     print('route',self.display_route(self.stripped_routes[i,:]))
-        # for i in range(self.active_routes.shape[0]):
-        #     print('route',self.display_route(self.active_routes[i,:]))
+        # self.display_all(self.stripped_routes)
+        # self.display_all(self.active_routes)
 
     def update_set_index(self):
         self.set_index = (self.set_index + 1) % len(self)
@@ -377,7 +446,7 @@ class ServerUtilities(object):
     
     def active_mean_field_route(self,field_entry,field_choice):
         # Select only that field
-        field_location = self.reverse_keys[field_choice]
+        field_location = self.reverse_field_names[field_choice]
         field_index = self.field_indexes[field_location]
         field_start = field_index[0]
         field_mask = np.where(self.active_routes[:,field_start+field_entry] == 1)[0]
@@ -387,7 +456,7 @@ class ServerUtilities(object):
     
     def historical_mean_field_route(self,field_entry,field_choice):
         # Select only that field
-        field_location = self.reverse_keys[field_choice]
+        field_location = self.reverse_field_names[field_choice]
         field_index = self.field_indexes[field_location]
         field_mask = np.where(self.active_routes[:,field_index[0]+field_entry] == 1)[0]
         hist_field_mask = np.where(self.historical_routes[:,field_index[0]+field_entry] == 1)[0]
@@ -401,7 +470,7 @@ class ServerUtilities(object):
     
     def novel_probabilistic_route(self,field_choice):
         target = self.field_from_distance(field_choice)
-        field_index = self.field_indexes[self.reverse_keys[field_choice]]
+        field_index = self.field_indexes[self.reverse_field_names[field_choice]]
         target_mean = self.historical_mean_field_route(target,field_choice)
         
         route = np.zeros(self.total_fields)
@@ -426,7 +495,7 @@ class ServerUtilities(object):
     
     def field_from_distance(self,field):
         # Deterministic field from distance
-        index = self.field_indexes[self.reverse_keys[field]]
+        index = self.field_indexes[self.reverse_field_names[field]]
         field = self.distance[index[0]:index[1]]
         field_selection = np.where(field == np.max(field))[0]
         return field_selection
@@ -441,12 +510,14 @@ class ServerUtilities(object):
         novel_route = self.novel_deterministic_route(field)
         goal_route = self.apply_weights(goal_route,self.goal_weights)
         novel_route = self.apply_weights(novel_route,self.novelty_weights)
-        combined_route = goal_route + novel_route
+        location_mask = self.field_lengths[self.reverse_field_names['location']]
+        novel_route[location_mask:] += goal_route
+        combined_route = novel_route
         # Probabilistically select each field
         final_route = self.route_from_probabilities(combined_route)
         return final_route
         
-    def probabilistic_novel_goal_route(self,field):
+    def probabilistic_novel_goal_route(self,location_route,field):
         """
         Creates a route probabilistically from the combination of novel probabilities and goal probabilities.
         """
@@ -454,10 +525,18 @@ class ServerUtilities(object):
         novel_route = self.novel_probabilistic_route(field)
         goal_route = self.apply_weights(goal_route,self.goal_weights)
         novel_route = self.apply_weights(novel_route,self.novelty_weights)
-        combined_route = goal_route + novel_route
-#         print('combined_route',combined_route)
+        location_mask = self.field_lengths[self.reverse_field_names['location']]
+        novel_route[location_mask:] += goal_route
+        novel_route[:location_mask] = location_route[:location_mask]
+        grade_index = self.field_indexes[1]
+        # Mask techniques with grades and terrain types TODO (Need techniques to be trimmed down to final version. And grade mask)
+        # Mask grades to avoid generating grades higher than max setting ability
+        novel_route[grade_index[0]:grade_index[1]] *= self.max_grade
+        for i,index in enumerate(self.field_indexes):
+            assert np.sum(novel_route[index[0]:index[1]]) != 0
+            novel_route[index[0]:index[1]] = novel_route[index[0]:index[1]] / np.sum(novel_route[index[0]:index[1]])
         # Probabilistically select each field
-        final_route = self.route_from_probabilities(combined_route)
+        final_route = self.route_from_probabilities(novel_route)
         return final_route
         
     # For processing from DB
@@ -476,14 +555,43 @@ class ServerUtilities(object):
                 if key.isdigit():
                     key = int(dbvalue['key'])
                 goals[self.reverse_field_dictionary[field][key] - self.field_lengths[0]] = self.num_routes / value
-        print('goal shape',goals.shape)
         self.goals = goals
 
     def return_suggestions(self):
-        print(self.reverse_keys)
-        print('field',self.field_from_distance('grade'))
-        final_route = novel_probabilistic_route('grade')
-        print('final_route',final_route)
+        suggestions = np.array([])
+        field_choice = 'grade'
+        for i in range(self.suggested_routes.shape[0]):
+            final_route = self.probabilistic_novel_goal_route(self.suggested_routes[i,:],field_choice)
+            # Add to current active routes
+            self.active_routes = np.vstack((final_route,self.active_routes))
+            if suggestions.size == 0:
+                suggestions = final_route
+            else:
+                suggestions = np.vstack((final_route,suggestions))
+        # print all suggestions
+        # for suggestion in suggestions:
+        #     self.display_route(suggestion)
+        # Convert routes back to readable
+        readable_suggestions = self.convert_routes_from_array(suggestions)
+        return suggestions,readable_suggestions
+
+    def convert_routes_from_array(self,suggestions):
+        now = datetime.datetime.now().isoformat()
+        readable_routes = []
+        for suggestion in suggestions:
+            default_route = {"primary_hold_set":[],"teaches":[],"hold_set":[],"location":'',"setter":'',"image":'',"grade":"","intra_difficulty":4,"risk":5,"intensity":3,"complexity":3,"height_friendly":"Average","set_screwed":'',"stripped":'',"start_location":'',"finish_location":'',"date":now,"notes":''}
+        
+            mask = np.where(suggestion > 0)[0]
+            print(self.route_array[mask])
+            for i,name in enumerate(self.field_names):
+                value = self.route_array[mask][i]
+                if name == 'teaches':
+                    default_route[name].append(value)
+                else:
+                    default_route[name] = value
+            readable_routes.append(default_route)
+        print(readable_routes)
+        return readable_routes
 
     def convert_to_array(self,routes):
         arr_routes = np.array([])
@@ -514,13 +622,9 @@ class ServerUtilities(object):
     @property
     def distance(self):
         # mean columns in routes
-        # if isinstance(routes,(np.ndarray,np.generic)):
-        #     current_dist = np.sum(routes,axis = 0)
-        #     nd_distance = self.goals - current_dist
-        #     return nd_distance
-        # else:
+        # Goals doesn't use locations, so we maskout locations before subtraction
         current_dist = np.sum(self.active_routes[self.field_lengths[0]:],axis = 0)
-        nd_distance = self.goals - current_dist
+        nd_distance = self.goals - current_dist[self.field_lengths[0]:]
         return nd_distance
     
     @property
